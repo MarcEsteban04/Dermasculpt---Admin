@@ -60,6 +60,14 @@
                         echo '</div>';
                         unset($_SESSION['login_error']);
                     }
+                    
+                    if (isset($_SESSION['login_success'])) {
+                        echo '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 z-10" role="alert">';
+                        echo '<strong class="font-bold">Success!</strong>';
+                        echo '<span class="block sm:inline"> ' . htmlspecialchars($_SESSION['login_success']) . '</span>';
+                        echo '</div>';
+                        unset($_SESSION['login_success']);
+                    }
                     ?>
                     <div class="flex justify-center mb-6 z-10">
                         <img src="assets/dermasculpt.jpg" alt="DermaSculpt Logo" class="h-32 w-auto object-contain drop-shadow-lg rounded-2xl border-4 border-cyan-200" />
@@ -104,7 +112,7 @@
                                 <label for="remember-me" class="ml-2 block text-sm text-gray-900">Remember me</label>
                             </div>
                             <div class="text-sm">
-                                <a href="#" class="font-medium text-cyan-600 hover:text-cyan-700 transition-colors">Forgot your password?</a>
+                                <a href="auth/forgot_password.php" class="font-medium text-cyan-600 hover:text-cyan-700 transition-colors">Forgot your password?</a>
                             </div>
                         </div>
                         <div class="mt-4">

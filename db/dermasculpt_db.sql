@@ -23,63 +23,6 @@ SET time_zone = "+00:00";
 
 -- --------------------------------------------------------
 
---
--- Table structure for table `invoices`
---
-
-CREATE TABLE `invoices` (
-  `invoice_id` int(11) NOT NULL,
-  `invoice_number` varchar(50) NOT NULL,
-  `appointment_id` int(11) DEFAULT NULL,
-  `user_id` int(11) NOT NULL,
-  `dermatologist_id` int(11) NOT NULL,
-  `issue_date` date NOT NULL,
-  `due_date` date DEFAULT NULL,
-  `subtotal_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `tax_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `status` enum('draft','sent','paid','partial','void') NOT NULL DEFAULT 'draft',
-  `notes` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `invoice_items`
---
-
-CREATE TABLE `invoice_items` (
-  `item_id` int(11) NOT NULL,
-  `invoice_id` int(11) NOT NULL,
-  `description` varchar(255) NOT NULL,
-  `quantity` decimal(10,2) NOT NULL DEFAULT 1.00,
-  `unit_price` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `line_total` decimal(10,2) NOT NULL DEFAULT 0.00
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `payments`
---
-
-CREATE TABLE `payments` (
-  `payment_id` int(11) NOT NULL,
-  `invoice_id` int(11) NOT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `payment_method` enum('cash','card','bank','online','other') NOT NULL DEFAULT 'cash',
-  `reference` varchar(100) DEFAULT NULL,
-  `paid_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Table structure for table `ai_skin_scans`
---
-
 CREATE TABLE `ai_skin_scans` (
   `scan_id` int(11) NOT NULL,
   `appointment_id` int(11) NOT NULL,
@@ -586,37 +529,6 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- Indexes for table `invoices`
---
-ALTER TABLE `invoices`
-  ADD PRIMARY KEY (`invoice_id`),
-  ADD UNIQUE KEY `invoice_number` (`invoice_number`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `dermatologist_id` (`dermatologist_id`),
-  ADD KEY `appointment_id` (`appointment_id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `issue_date` (`issue_date`);
-
---
--- Indexes for table `invoice_items`
---
-ALTER TABLE `invoice_items`
-  ADD PRIMARY KEY (`item_id`),
-  ADD KEY `invoice_id` (`invoice_id`);
-
---
--- Indexes for table `payments`
---
-ALTER TABLE `payments`
-  ADD PRIMARY KEY (`payment_id`),
-  ADD KEY `invoice_id` (`invoice_id`),
-  ADD KEY `paid_at` (`paid_at`);
-
---
--- AUTO_INCREMENT for dumped tables
---
-
---
 -- AUTO_INCREMENT for table `ai_skin_scans`
 --
 ALTER TABLE `ai_skin_scans`
@@ -713,24 +625,6 @@ ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `invoices`
---
-ALTER TABLE `invoices`
-  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `invoice_items`
---
-ALTER TABLE `invoice_items`
-  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `payments`
---
-ALTER TABLE `payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- Constraints for dumped tables
 --
 
@@ -785,27 +679,6 @@ ALTER TABLE `prescription_downloads`
 --
 ALTER TABLE `prescription_medications`
   ADD CONSTRAINT `prescription_medications_ibfk_1` FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions` (`prescription_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `invoices`
---
-ALTER TABLE `invoices`
-  ADD CONSTRAINT `invoices_ibfk_appointment` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`appointment_id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `invoices_ibfk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT,
-  ADD CONSTRAINT `invoices_ibfk_derm` FOREIGN KEY (`dermatologist_id`) REFERENCES `dermatologists` (`dermatologist_id`) ON DELETE RESTRICT;
-
---
--- Constraints for table `invoice_items`
---
-ALTER TABLE `invoice_items`
-  ADD CONSTRAINT `invoice_items_ibfk_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`invoice_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `payments_ibfk_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`invoice_id`) ON DELETE CASCADE;
-COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

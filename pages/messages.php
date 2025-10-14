@@ -456,6 +456,35 @@ if ($activeUserId) {
         const aiOutput = document.getElementById('ai-output');
         const backToListBtn = document.getElementById('back-to-list');
 
+        // Sidebar toggle and user dropdown handlers (fixes toggleDropdown reference)
+        const sidebarEl = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+        const userDropdown = document.getElementById('user-dropdown');
+
+        function toggleSidebar() {
+            if (!sidebarEl) return;
+            if (window.innerWidth < 1024) {
+                sidebarEl.classList.toggle('open');
+                sidebarOverlay?.classList.toggle('hidden');
+            } else {
+                sidebarEl.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleDropdown() {
+            userDropdown?.classList.toggle('hidden');
+        }
+
+        sidebarToggleBtn?.addEventListener('click', toggleSidebar);
+        window.addEventListener('click', function(e) {
+            if (!userDropdown) return;
+            const toggleBtn = document.querySelector('button[onclick="toggleDropdown()"]');
+            if (!userDropdown.contains(e.target) && !(toggleBtn && toggleBtn.contains(e.target))) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         function scrollToBottom() {
             if (messageBody) messageBody.scrollTop = messageBody.scrollHeight;
         }

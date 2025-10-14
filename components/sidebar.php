@@ -94,14 +94,6 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
             <i class="fas fa-clipboard-list w-6 text-center mr-4"></i>
             <span class="sidebar-text">Appointment Notes</span>
         </a>
-        <a href="billing.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'billing.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
-            <i class="fas fa-file-invoice-dollar w-6 text-center mr-4"></i>
-            <span class="sidebar-text">Billing</span>
-        </a>
-        <a href="reports.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'reports.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
-            <i class="fas fa-chart-line w-6 text-center mr-4"></i>
-            <span class="sidebar-text">Reports</span>
-        </a>
         <a href="schedules.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'schedules.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
             <i class="fas fa-calendar-times w-6 text-center mr-4"></i>
             <span class="sidebar-text">Schedules</span>
@@ -123,4 +115,61 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
     </div>
 </aside>
 
+<div id="logoutConfirmModal" class="fixed inset-0 z-[999] hidden">
+    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
+            <div class="p-5 border-b">
+                <h3 class="text-xl font-semibold text-gray-800">Confirm Logout</h3>
+                <p class="text-sm text-gray-600 mt-1">Are you sure you want to log out?</p>
+            </div>
+            <div class="p-5 flex items-center justify-end gap-3">
+                <button id="logoutCancelBtn" class="px-4 py-2 rounded-lg border hover:bg-gray-50 text-gray-700">Cancel</button>
+                <button id="logoutConfirmBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">Logout</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
 <script src="../js/sidebar-badges.js"></script>
+<script>
+(function() {
+    let pendingLogoutHref = null;
+    const modal = document.getElementById('logoutConfirmModal');
+    const cancelBtn = document.getElementById('logoutCancelBtn');
+    const confirmBtn = document.getElementById('logoutConfirmBtn');
+
+    function openModal(href) {
+        pendingLogoutHref = href;
+        modal.classList.remove('hidden');
+    }
+    function closeModal() {
+        pendingLogoutHref = null;
+        modal.classList.add('hidden');
+    }
+
+    document.addEventListener('click', function(e) {
+        const anchor = e.target.closest('a[href]');
+        if (!anchor) return;
+        const href = anchor.getAttribute('href') || '';
+        // Match any logout link regardless of relative depth
+        if (href.endsWith('auth/logout.php')) {
+            e.preventDefault();
+            openModal(anchor.href);
+        }
+    });
+
+    cancelBtn?.addEventListener('click', function() { closeModal(); });
+    // Also close when clicking backdrop
+    modal?.addEventListener('click', function(e) {
+        if (e.target === modal || e.target.classList.contains('bg-opacity-50')) {
+            closeModal();
+        }
+    });
+    confirmBtn?.addEventListener('click', function() {
+        if (pendingLogoutHref) {
+            window.location.href = pendingLogoutHref;
+        }
+    });
+})();
+</script>
