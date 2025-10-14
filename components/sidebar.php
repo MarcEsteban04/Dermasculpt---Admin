@@ -90,6 +90,18 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
             <i class="fas fa-microscope w-6 text-center mr-4"></i>
             <span class="sidebar-text">Skin Analysis</span>
         </a>
+        <a href="appointment_notes.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'appointment_notes.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+            <i class="fas fa-clipboard-list w-6 text-center mr-4"></i>
+            <span class="sidebar-text">Appointment Notes</span>
+        </a>
+        <a href="billing.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'billing.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+            <i class="fas fa-file-invoice-dollar w-6 text-center mr-4"></i>
+            <span class="sidebar-text">Billing</span>
+        </a>
+        <a href="reports.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'reports.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+            <i class="fas fa-chart-line w-6 text-center mr-4"></i>
+            <span class="sidebar-text">Reports</span>
+        </a>
         <a href="schedules.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'schedules.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
             <i class="fas fa-calendar-times w-6 text-center mr-4"></i>
             <span class="sidebar-text">Schedules</span>
