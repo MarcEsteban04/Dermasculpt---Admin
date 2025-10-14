@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS `otp_codes` (
   `email` varchar(255) NOT NULL,
   `otp_code` varchar(6) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `expires_at` timestamp NOT NULL,
+  `expires_at` timestamp NULL,
   `is_used` tinyint(1) NOT NULL DEFAULT 0,
   `attempts` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
