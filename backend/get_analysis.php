@@ -32,7 +32,7 @@ try {
     $stmt = $conn->prepare("
         SELECT analysis_id, patient_name, patient_age, patient_gender, image_path, image_filename,
                analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations,
-               dermatologist_notes, dermatologist_diagnosis, status, created_at, updated_at
+               created_at, updated_at
         FROM skin_analysis 
         WHERE analysis_id = ? AND dermatologist_id = ?
     ");
@@ -73,8 +73,6 @@ function generateAnalysisHTML($analysis, $detectedConditions) {
     if ($analysis['patient_age']) $patientInfo .= $patientInfo ? ', ' . $analysis['patient_age'] . ' years' : $analysis['patient_age'] . ' years';
     if ($analysis['patient_gender']) $patientInfo .= $patientInfo ? ', ' . $analysis['patient_gender'] : $analysis['patient_gender'];
     
-    $statusClass = getStatusBadgeClass($analysis['status']);
-    
     $html = '
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Image Section -->
@@ -92,11 +90,6 @@ function generateAnalysisHTML($analysis, $detectedConditions) {
                 <p class="text-sm text-gray-500 mt-1">
                     Analysis Date: ' . date('M j, Y g:i A', strtotime($analysis['created_at'])) . '
                 </p>
-                <div class="mt-2">
-                    <span class="px-2 py-1 text-xs font-semibold rounded-full ' . $statusClass . '">
-                        ' . ucfirst($analysis['status']) . '
-                    </span>
-                </div>
             </div>
             
             ' . ($analysis['analysis_prompt'] ? '
@@ -153,74 +146,8 @@ function generateAnalysisHTML($analysis, $detectedConditions) {
                 </div>
                 ' : '') . '
             </div>
-            
-            <!-- Dermatologist Review -->
-            <div class="bg-white border rounded-lg p-4">
-                <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
-                    <i class="fas fa-user-md text-green-500 mr-2"></i>
-                    Dermatologist Review
-                </h4>
-                
-                <form id="reviewForm" class="space-y-3">
-                    <input type="hidden" name="analysis_id" value="' . $analysis['analysis_id'] . '">
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Clinical Diagnosis</label>
-                        <textarea name="dermatologist_diagnosis" rows="2" 
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                  placeholder="Enter your clinical diagnosis...">' . htmlspecialchars($analysis['dermatologist_diagnosis'] ?? '') . '</textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Clinical Notes</label>
-                        <textarea name="dermatologist_notes" rows="3" 
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                  placeholder="Add your clinical observations and notes...">' . htmlspecialchars($analysis['dermatologist_notes'] ?? '') . '</textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="pending"' . ($analysis['status'] === 'pending' ? ' selected' : '') . '>Pending Review</option>
-                            <option value="reviewed"' . ($analysis['status'] === 'reviewed' ? ' selected' : '') . '>Reviewed</option>
-                            <option value="confirmed"' . ($analysis['status'] === 'confirmed' ? ' selected' : '') . '>Confirmed</option>
-                            <option value="rejected"' . ($analysis['status'] === 'rejected' ? ' selected' : '') . '>Rejected</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <i class="fas fa-save mr-2"></i>Save Review
-                    </button>
-                </form>
-            </div>
         </div>
     </div>
-    
-    <script>
-    document.getElementById("reviewForm").addEventListener("submit", async function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        
-        try {
-            const response = await fetch("../backend/update_analysis.php", {
-                method: "POST",
-                body: formData
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                Swal.fire("Success", "Analysis updated successfully", "success");
-            } else {
-                throw new Error(result.message || "Failed to update analysis");
-            }
-        } catch (error) {
-            console.error("Update error:", error);
-            Swal.fire("Error", error.message || "Failed to update analysis", "error");
-        }
-    });
-    </script>
     ';
     
     return $html;
@@ -252,18 +179,4 @@ function formatRecommendations($recommendations) {
     return $formatted;
 }
 
-function getStatusBadgeClass($status) {
-    switch ($status) {
-        case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
-        case 'reviewed':
-            return 'bg-blue-100 text-blue-800';
-        case 'confirmed':
-            return 'bg-green-100 text-green-800';
-        case 'rejected':
-            return 'bg-red-100 text-red-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
-}
 ?>

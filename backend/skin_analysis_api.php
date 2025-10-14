@@ -83,8 +83,8 @@ try {
     $stmt = $conn->prepare("
         INSERT INTO skin_analysis 
         (dermatologist_id, patient_name, patient_age, patient_gender, image_path, image_filename, 
-         analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations, status) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+         analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->bind_param(

@@ -25,7 +25,7 @@ try {
     // Get recent analyses for the current dermatologist
     $stmt = $conn->prepare("
         SELECT analysis_id, patient_name, patient_age, patient_gender, image_filename, 
-               ai_diagnosis, confidence_score, status, created_at, dermatologist_diagnosis
+               ai_diagnosis, confidence_score, created_at
         FROM skin_analysis 
         WHERE dermatologist_id = ? 
         ORDER BY created_at DESC 
@@ -65,12 +65,10 @@ function generateRecentAnalysesHTML($analyses) {
 
     $html = '';
     foreach ($analyses as $analysis) {
-        $statusClass = getStatusBadgeClass($analysis['status']);
-        
         $html .= '
         <div class="analysis-card border rounded-lg p-4 cursor-pointer hover:shadow-md" onclick="viewAnalysis(' . $analysis['analysis_id'] . ')">
             <div class="flex justify-between items-start mb-2">
-                <div>
+                <div class="flex-1">
                     <h4 class="font-semibold text-gray-800">
                         ' . htmlspecialchars($analysis['patient_name'] ?: 'Anonymous Patient') . '
                     </h4>
@@ -79,9 +77,11 @@ function generateRecentAnalysesHTML($analyses) {
                         ' . ($analysis['patient_gender'] ? ($analysis['patient_age'] ? ', ' : '') . $analysis['patient_gender'] : '') . '
                     </p>
                 </div>
-                <span class="px-2 py-1 text-xs font-semibold rounded-full ' . $statusClass . '">
-                    ' . ucfirst($analysis['status']) . '
-                </span>
+                <button onclick="event.stopPropagation(); deleteAnalysis(' . $analysis['analysis_id'] . ')" 
+                        class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                        title="Delete Analysis">
+                    <i class="fas fa-trash text-sm"></i>
+                </button>
             </div>
             
             ' . ($analysis['confidence_score'] ? '
@@ -111,18 +111,4 @@ function generateRecentAnalysesHTML($analyses) {
     return $html;
 }
 
-function getStatusBadgeClass($status) {
-    switch ($status) {
-        case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
-        case 'reviewed':
-            return 'bg-blue-100 text-blue-800';
-        case 'confirmed':
-            return 'bg-green-100 text-green-800';
-        case 'rejected':
-            return 'bg-red-100 text-red-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
-}
 ?>

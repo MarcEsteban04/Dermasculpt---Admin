@@ -34,39 +34,14 @@ $analysisStmt->execute();
 $recentAnalyses = $analysisStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $analysisStmt->close();
 
-// Count analyses by status
-$statusCounts = [
-    'pending' => 0,
-    'reviewed' => 0,
-    'confirmed' => 0,
-    'rejected' => 0
-];
-
-$countStmt = $conn->prepare("SELECT status, COUNT(*) as count FROM skin_analysis WHERE dermatologist_id = ? GROUP BY status");
+// Get total analysis count
+$countStmt = $conn->prepare("SELECT COUNT(*) as total FROM skin_analysis WHERE dermatologist_id = ?");
 $countStmt->bind_param("i", $dermatologistId);
 $countStmt->execute();
 $countResult = $countStmt->get_result();
-while ($row = $countResult->fetch_assoc()) {
-    if (array_key_exists($row['status'], $statusCounts)) {
-        $statusCounts[$row['status']] = $row['count'];
-    }
-}
+$totalAnalyses = $countResult->fetch_assoc()['total'];
 $countStmt->close();
 
-function getStatusBadgeClass($status) {
-    switch ($status) {
-        case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
-        case 'reviewed':
-            return 'bg-blue-100 text-blue-800';
-        case 'confirmed':
-            return 'bg-green-100 text-green-800';
-        case 'rejected':
-            return 'bg-red-100 text-red-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -207,50 +182,21 @@ function getStatusBadgeClass($status) {
                 </div>
             </div>
 
-            <!-- Status Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <!-- Analysis Summary -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
-                            <i class="fas fa-clock text-yellow-600"></i>
+                            <i class="fas fa-microscope text-blue-600 text-2xl"></i>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-yellow-800">Pending</p>
-                            <p class="text-2xl font-bold text-yellow-900"><?php echo $statusCounts['pending']; ?></p>
+                            <p class="text-sm font-medium text-gray-800">Total Analyses</p>
+                            <p class="text-3xl font-bold text-blue-900"><?php echo $totalAnalyses; ?></p>
                         </div>
                     </div>
-                </div>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-eye text-blue-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-blue-800">Reviewed</p>
-                            <p class="text-2xl font-bold text-blue-900"><?php echo $statusCounts['reviewed']; ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-check-circle text-green-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-green-800">Confirmed</p>
-                            <p class="text-2xl font-bold text-green-900"><?php echo $statusCounts['confirmed']; ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-times-circle text-red-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-red-800">Rejected</p>
-                            <p class="text-2xl font-bold text-red-900"><?php echo $statusCounts['rejected']; ?></p>
-                        </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">AI-Powered Skin Analysis</p>
+                        <p class="text-xs text-gray-500">Evidence-based diagnostic assistance</p>
                     </div>
                 </div>
             </div>
@@ -292,7 +238,7 @@ function getStatusBadgeClass($status) {
                                 <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
                                 <p class="text-lg font-medium text-gray-600 mb-2">Drop your skin image here or click to browse</p>
                                 <p class="text-sm text-gray-500">Supports JPG, PNG, GIF up to 10MB</p>
-                                <button type="button" onclick="document.getElementById('imageInput').click()" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                                <button type="button" id="chooseImageBtn" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
                                     Choose Image
                                 </button>
                             </div>
@@ -334,7 +280,7 @@ function getStatusBadgeClass($status) {
                             <?php foreach ($recentAnalyses as $analysis): ?>
                                 <div class="analysis-card border rounded-lg p-4 cursor-pointer hover:shadow-md" onclick="viewAnalysis(<?php echo $analysis['analysis_id']; ?>)">
                                     <div class="flex justify-between items-start mb-2">
-                                        <div>
+                                        <div class="flex-1">
                                             <h4 class="font-semibold text-gray-800">
                                                 <?php echo htmlspecialchars($analysis['patient_name'] ?: 'Anonymous Patient'); ?>
                                             </h4>
@@ -343,9 +289,11 @@ function getStatusBadgeClass($status) {
                                                 <?php echo $analysis['patient_gender'] ? ', ' . $analysis['patient_gender'] : ''; ?>
                                             </p>
                                         </div>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo getStatusBadgeClass($analysis['status']); ?>">
-                                            <?php echo ucfirst($analysis['status']); ?>
-                                        </span>
+                                        <button onclick="event.stopPropagation(); deleteAnalysis(<?php echo $analysis['analysis_id']; ?>)" 
+                                                class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                                title="Delete Analysis">
+                                            <i class="fas fa-trash text-sm"></i>
+                                        </button>
                                     </div>
                                     
                                     <?php if ($analysis['confidence_score']): ?>
@@ -422,8 +370,17 @@ function getStatusBadgeClass($status) {
             }
         });
 
-        uploadArea.addEventListener('click', () => {
+        // Handle upload area click (but not on the button)
+        uploadArea.addEventListener('click', (e) => {
             if (!imagePreview.classList.contains('hidden')) return;
+            // Don't trigger if clicking on the button
+            if (e.target.id === 'chooseImageBtn' || e.target.closest('#chooseImageBtn')) return;
+            imageInput.click();
+        });
+
+        // Handle choose image button click
+        document.getElementById('chooseImageBtn').addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent upload area click
             imageInput.click();
         });
 
@@ -566,6 +523,56 @@ function getStatusBadgeClass($status) {
 
         function closeModal() {
             document.getElementById('resultsModal').classList.add('hidden');
+        }
+
+        async function deleteAnalysis(analysisId) {
+            try {
+                const result = await Swal.fire({
+                    title: 'Delete Analysis',
+                    text: 'Are you sure you want to delete this analysis? This action cannot be undone.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel'
+                });
+
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('analysis_id', analysisId);
+
+                    const response = await fetch('../backend/delete_analysis.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const responseText = await response.text();
+                    
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (jsonError) {
+                        console.error('JSON Parse Error:', jsonError);
+                        console.error('Response Text:', responseText);
+                        throw new Error('Server returned invalid response.');
+                    }
+
+                    if (result.success) {
+                        Swal.fire('Deleted!', 'The analysis has been deleted successfully.', 'success');
+                        refreshAnalyses();
+                    } else {
+                        throw new Error(result.message || 'Failed to delete analysis');
+                    }
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                Swal.fire('Error', error.message || 'Failed to delete analysis.', 'error');
+            }
         }
 
         async function refreshAnalyses() {
