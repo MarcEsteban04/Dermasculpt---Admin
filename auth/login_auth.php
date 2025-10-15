@@ -34,6 +34,7 @@ if ($result->num_rows === 1) {
         $_SESSION['loggedin'] = true;
         $_SESSION['dermatologist_id'] = $user['dermatologist_id'];
         $_SESSION['first_name'] = $user['first_name'];
+        $_SESSION['login_success_modal'] = true;
         
         header("location: ../pages/dashboard.php");
         exit;

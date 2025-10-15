@@ -171,24 +171,76 @@ $profilePicturePath = isset($derma['profile_picture_url']) && !empty($derma['pro
                     </div>
 
                     <div class="bg-white/90 p-6 rounded-2xl shadow-2xl border border-cyan-100">
-                        <h3 class="text-xl font-semibold border-b pb-4 mb-6 text-cyan-700">Change Password</h3>
-                        <form action="../auth/update_profile.php" method="POST" class="space-y-6">
-                            <div class="relative">
-                                <input type="password" id="current_password" name="current_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Current Password">
-                                <label for="current_password" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">Current Password</label>
+                        <h3 class="text-xl font-semibold border-b pb-4 mb-6 text-cyan-700 flex items-center">
+                            <i class="fas fa-shield-alt mr-2"></i>Change Password (OTP Protected)
+                        </h3>
+                        
+                        <!-- Alert Messages -->
+                        <div id="passwordAlert" class="hidden mb-4 p-3 rounded-lg"></div>
+                        
+                        <!-- Step 1: Current Password & Request OTP -->
+                        <div id="step1" class="space-y-6">
+                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+                                <div class="flex items-center">
+                                    <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                                    <p class="text-sm text-blue-800">For your security, we'll send a verification code to your email before changing your password.</p>
+                                </div>
                             </div>
-                            <div class="relative">
-                                <input type="password" id="new_password" name="new_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="New Password">
-                                <label for="new_password" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">New Password</label>
+                            
+                            <form id="requestOtpForm" class="space-y-6">
+                                <div class="relative">
+                                    <input type="password" id="current_password_step1" name="current_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 pr-12 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Current Password" required>
+                                    <label for="current_password_step1" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">Current Password</label>
+                                    <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onclick="togglePassword('current_password_step1', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="text-right">
+                                    <button type="submit" id="requestOtpBtn" class="bg-orange-600 text-white py-2 px-6 rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 font-semibold shadow-md transition-transform transform hover:scale-105 flex items-center">
+                                        <i class="fas fa-paper-plane mr-2"></i>Send Verification Code
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Step 2: OTP Verification & New Password -->
+                        <div id="step2" class="hidden space-y-6">
+                            <div class="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
+                                <div class="flex items-center">
+                                    <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                                    <p class="text-sm text-green-800">Verification code sent! Check your email and enter the code below along with your new password.</p>
+                                </div>
                             </div>
-                            <div class="relative">
-                                <input type="password" id="confirm_password" name="confirm_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Confirm New Password">
-                                <label for="confirm_password" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">Confirm New Password</label>
-                            </div>
-                            <div class="text-right">
-                                <button type="submit" name="change_password" class="bg-cyan-600 text-white py-2 px-6 rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-semibold shadow-md transition-transform transform hover:scale-105">Update Password</button>
-                            </div>
-                        </form>
+                            
+                            <form id="changePasswordForm" class="space-y-6">
+                                <div class="relative">
+                                    <input type="text" id="otp_code" name="otp_code" maxlength="6" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none text-center text-2xl font-mono tracking-widest" placeholder="000000" required>
+                                    <label for="otp_code" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">Verification Code</label>
+                                </div>
+                                <div class="relative">
+                                    <input type="password" id="new_password_step2" name="new_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 pr-12 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="New Password" required>
+                                    <label for="new_password_step2" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">New Password</label>
+                                    <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onclick="togglePassword('new_password_step2', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="relative">
+                                    <input type="password" id="confirm_password_step2" name="confirm_password" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 pr-12 placeholder-transparent focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Confirm New Password" required>
+                                    <label for="confirm_password_step2" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-cyan-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-cyan-700">Confirm New Password</label>
+                                    <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onclick="togglePassword('confirm_password_step2', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="flex justify-between">
+                                    <button type="button" id="backToStep1" class="bg-gray-600 text-white py-2 px-6 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-semibold shadow-md transition-transform transform hover:scale-105">
+                                        <i class="fas fa-arrow-left mr-2"></i>Back
+                                    </button>
+                                    <button type="submit" id="changePasswordBtn" class="bg-cyan-600 text-white py-2 px-6 rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-semibold shadow-md transition-transform transform hover:scale-105">
+                                        <i class="fas fa-key mr-2"></i>Update Password
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,6 +253,22 @@ $profilePicturePath = isset($derma['profile_picture_url']) && !empty($derma['pro
         const profilePictureInput = document.getElementById('profile_picture_input');
         const profileImagePreview = document.getElementById('profileImagePreview');
         const savePictureBtn = document.getElementById('savePictureBtn');
+
+        // Password visibility toggle function
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
 
         function toggleSidebar() {
             if (window.innerWidth < 1024) {
@@ -231,6 +299,156 @@ $profilePicturePath = isset($derma['profile_picture_url']) && !empty($derma['pro
                 reader.readAsDataURL(file);
                 savePictureBtn.classList.remove('hidden');
             }
+        });
+
+        // Password Change OTP System
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const passwordAlert = document.getElementById('passwordAlert');
+        const requestOtpForm = document.getElementById('requestOtpForm');
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        const requestOtpBtn = document.getElementById('requestOtpBtn');
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const backToStep1Btn = document.getElementById('backToStep1');
+
+        function showAlert(message, type = 'error') {
+            passwordAlert.className = `mb-4 p-3 rounded-lg ${type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' : 'bg-red-100 border border-red-400 text-red-700'}`;
+            passwordAlert.textContent = message;
+            passwordAlert.classList.remove('hidden');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                passwordAlert.classList.add('hidden');
+            }, 5000);
+        }
+
+        function hideAlert() {
+            passwordAlert.classList.add('hidden');
+        }
+
+        function showStep2() {
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+            hideAlert();
+        }
+
+        function showStep1() {
+            step2.classList.add('hidden');
+            step1.classList.remove('hidden');
+            hideAlert();
+            // Reset forms
+            requestOtpForm.reset();
+            changePasswordForm.reset();
+        }
+
+        // Handle OTP request
+        requestOtpForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('current_password_step1').value;
+            
+            if (!currentPassword) {
+                showAlert('Please enter your current password');
+                return;
+            }
+
+            // Disable button and show loading
+            requestOtpBtn.disabled = true;
+            requestOtpBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+            try {
+                const formData = new FormData();
+                formData.append('current_password', currentPassword);
+
+                const response = await fetch('../auth/send_password_otp.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStep2();
+                    showAlert(result.message, 'success');
+                } else {
+                    showAlert(result.message);
+                }
+            } catch (error) {
+                showAlert('Network error. Please try again.');
+            } finally {
+                // Re-enable button
+                requestOtpBtn.disabled = false;
+                requestOtpBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Verification Code';
+            }
+        });
+
+        // Handle password change with OTP
+        changePasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const otpCode = document.getElementById('otp_code').value;
+            const newPassword = document.getElementById('new_password_step2').value;
+            const confirmPassword = document.getElementById('confirm_password_step2').value;
+            
+            if (!otpCode || !newPassword || !confirmPassword) {
+                showAlert('Please fill in all fields');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showAlert('New password and confirmation do not match');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                showAlert('Password must be at least 8 characters long');
+                return;
+            }
+
+            // Disable button and show loading
+            changePasswordBtn.disabled = true;
+            changePasswordBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+
+            try {
+                const formData = new FormData();
+                formData.append('otp_code', otpCode);
+                formData.append('new_password', newPassword);
+                formData.append('confirm_password', confirmPassword);
+
+                const response = await fetch('../auth/verify_password_otp.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    // Reset to step 1 after successful password change
+                    setTimeout(() => {
+                        showStep1();
+                    }, 2000);
+                } else {
+                    showAlert(result.message);
+                }
+            } catch (error) {
+                showAlert('Network error. Please try again.');
+            } finally {
+                // Re-enable button
+                changePasswordBtn.disabled = false;
+                changePasswordBtn.innerHTML = '<i class="fas fa-key mr-2"></i>Update Password';
+            }
+        });
+
+        // Handle back button
+        backToStep1Btn.addEventListener('click', function() {
+            showStep1();
+        });
+
+        // Auto-format OTP input
+        document.getElementById('otp_code').addEventListener('input', function(e) {
+            // Only allow numbers
+            this.value = this.value.replace(/[^0-9]/g, '');
         });
     </script>
 </body>

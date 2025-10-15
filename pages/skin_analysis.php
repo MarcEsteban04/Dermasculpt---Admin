@@ -201,9 +201,30 @@ $countStmt->close();
                 </div>
             </div>
 
+            <!-- Appointment Selection Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-calendar-check text-purple-500 mr-3"></i>
+                    Analyze from Appointment
+                </h3>
+                <p class="text-gray-600 mb-4">Select an appointment with attached images to perform AI skin analysis</p>
+                
+                <div class="flex gap-4 mb-4">
+                    <button id="loadAppointmentsBtn" onclick="loadAppointmentsWithImages()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                        <i class="fas fa-search"></i> Load Appointments
+                    </button>
+                </div>
+                
+                <div id="appointmentsContainer" class="hidden">
+                    <div id="appointmentsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Appointments will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <!-- Upload Section -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
+                <div id="uploadSection" class="bg-white rounded-lg shadow-lg p-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                         <i class="fas fa-upload text-blue-500 mr-3"></i>
                         New Analysis
@@ -420,8 +441,14 @@ $countStmt->close();
         analysisForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            if (!imageInput.files[0]) {
+            // Check if we have an image (either uploaded or from appointment)
+            if (currentAnalysisMode === 'upload' && !imageInput.files[0]) {
                 Swal.fire('Error', 'Please select an image to analyze.', 'error');
+                return;
+            }
+            
+            if (currentAnalysisMode === 'appointment' && !selectedImagePath) {
+                Swal.fire('Error', 'Please select an appointment image to analyze.', 'error');
                 return;
             }
 
@@ -429,7 +456,17 @@ $countStmt->close();
             analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...';
 
             const formData = new FormData();
-            formData.append('skin_image', imageInput.files[0]);
+            
+            // Add analysis mode and appointment data
+            formData.append('analysis_mode', currentAnalysisMode);
+            
+            if (currentAnalysisMode === 'appointment') {
+                formData.append('appointment_id', selectedAppointment);
+                formData.append('appointment_image_path', selectedImagePath);
+            } else {
+                formData.append('skin_image', imageInput.files[0]);
+            }
+            
             formData.append('patient_name', document.getElementById('patientName').value);
             formData.append('patient_age', document.getElementById('patientAge').value);
             formData.append('patient_gender', document.getElementById('patientGender').value);
@@ -600,6 +637,228 @@ $countStmt->close();
             } catch (error) {
                 console.error('Refresh error:', error);
                 // Silently fail for refresh - don't show error to user
+            }
+        }
+
+        // Appointment analysis functionality
+        let currentAnalysisMode = 'upload'; // 'upload' or 'appointment'
+        let selectedAppointment = null;
+        let selectedImagePath = null;
+
+        async function loadAppointmentsWithImages() {
+            const loadBtn = document.getElementById('loadAppointmentsBtn');
+            const originalText = loadBtn.innerHTML;
+            
+            try {
+                loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                loadBtn.disabled = true;
+
+                const response = await fetch('../backend/get_appointments_with_images.php');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayAppointments(result.appointments);
+                    document.getElementById('appointmentsContainer').classList.remove('hidden');
+                } else {
+                    Swal.fire('Error', result.message || 'Failed to load appointments', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                Swal.fire('Error', 'Failed to load appointments', 'error');
+            } finally {
+                loadBtn.innerHTML = originalText;
+                loadBtn.disabled = false;
+            }
+        }
+
+        function displayAppointments(appointments) {
+            const container = document.getElementById('appointmentsList');
+            
+            if (appointments.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-calendar-times fa-3x mb-4 opacity-50"></i>
+                        <p>No appointments with images found.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = appointments.map(appointment => {
+                const date = new Date(appointment.appointment_date).toLocaleDateString();
+                const time = appointment.appointment_time.substring(0, 5);
+                const statusClass = getStatusBadgeClass(appointment.status);
+                
+                return `
+                    <div class="appointment-card border rounded-lg p-4 cursor-pointer hover:shadow-md transition-all" 
+                         onclick="selectAppointment(${appointment.appointment_id}, '${appointment.patient_name}', '${date}', '${time}')">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${appointment.patient_name}</h4>
+                                <p class="text-sm text-gray-600">${date} at ${time}</p>
+                                <span class="inline-block px-2 py-1 text-xs rounded-full ${statusClass}">${appointment.status}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-500">${appointment.image_paths.length} image(s)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2 mb-2">
+                            ${appointment.image_paths.slice(0, 3).map(path => `
+                                <img src="../../DermaSculpt_user/${path}" 
+                                     class="w-16 h-16 object-cover rounded-md border hover:opacity-80" 
+                                     alt="Appointment image">
+                            `).join('')}
+                            ${appointment.image_paths.length > 3 ? `<div class="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center text-gray-500 text-xs">+${appointment.image_paths.length - 3}</div>` : ''}
+                        </div>
+                        
+                        ${appointment.reason_for_appointment ? `<p class="text-sm text-gray-600 truncate">${appointment.reason_for_appointment}</p>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'Scheduled': return 'bg-green-100 text-green-800';
+                case 'Pending': return 'bg-yellow-100 text-yellow-800';
+                case 'Completed': return 'bg-blue-100 text-blue-800';
+                case 'Cancelled': return 'bg-red-100 text-red-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function selectAppointment(appointmentId, patientName, date, time) {
+            selectedAppointment = appointmentId;
+            
+            // Show image selection modal
+            showImageSelectionModal(appointmentId, patientName, date, time);
+        }
+
+        async function showImageSelectionModal(appointmentId, patientName, date, time) {
+            try {
+                const response = await fetch(`../backend/get_appointments_with_images.php`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const appointment = result.appointments.find(a => a.appointment_id == appointmentId);
+                    if (appointment) {
+                        const imageOptions = appointment.image_paths.map((path, index) => `
+                            <div class="image-option border rounded-lg p-3 cursor-pointer hover:bg-blue-50 hover:border-blue-300" 
+                                 onclick="selectImageForAnalysis('${path}', '${patientName}', '${date}', '${time}', ${appointmentId})">
+                                <img src="../../DermaSculpt_user/${path}" class="w-full h-32 object-cover rounded-md mb-2" alt="Image ${index + 1}">
+                                <p class="text-sm text-center text-gray-600">Image ${index + 1}</p>
+                            </div>
+                        `).join('');
+
+                        Swal.fire({
+                            title: `Select Image for Analysis`,
+                            html: `
+                                <div class="text-left mb-4">
+                                    <p><strong>Patient:</strong> ${patientName}</p>
+                                    <p><strong>Date:</strong> ${date} at ${time}</p>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    ${imageOptions}
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            showConfirmButton: false,
+                            cancelButtonText: 'Cancel',
+                            width: '800px'
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error showing image selection:', error);
+                Swal.fire('Error', 'Failed to load appointment images', 'error');
+            }
+        }
+
+        function selectImageForAnalysis(imagePath, patientName, date, time, appointmentId) {
+            selectedImagePath = imagePath;
+            selectedAppointment = appointmentId;
+            currentAnalysisMode = 'appointment';
+            
+            // Close the modal
+            Swal.close();
+            
+            // Switch to appointment analysis mode
+            switchToAppointmentMode(imagePath, patientName, date, time);
+        }
+
+        function switchToAppointmentMode(imagePath, patientName, date, time) {
+            // Hide upload section, show appointment analysis
+            document.getElementById('uploadSection').style.display = 'none';
+            
+            // Pre-fill patient information
+            document.getElementById('patientName').value = patientName;
+            document.getElementById('patientName').disabled = true;
+            
+            // Show selected image preview
+            const previewImg = document.getElementById('previewImg');
+            previewImg.src = `../../DermaSculpt_user/${imagePath}`;
+            document.getElementById('uploadContent').classList.add('hidden');
+            document.getElementById('imagePreview').classList.remove('hidden');
+            
+            // Update form title
+            const formTitle = document.querySelector('#uploadSection h3');
+            formTitle.innerHTML = `
+                <i class="fas fa-calendar-check text-purple-500 mr-3"></i>
+                Analyzing Appointment Image
+            `;
+            
+            // Show upload section again but in appointment mode
+            document.getElementById('uploadSection').style.display = 'block';
+            
+            // Update analyze button
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.innerHTML = '<i class="fas fa-microscope mr-2"></i>Analyze Appointment Image';
+            
+            // Show success message
+            Swal.fire({
+                title: 'Image Selected!',
+                text: `Ready to analyze image from ${patientName}'s appointment on ${date}`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+
+        function toggleAnalysisMode() {
+            if (currentAnalysisMode === 'appointment') {
+                // Switch back to upload mode
+                currentAnalysisMode = 'upload';
+                selectedAppointment = null;
+                selectedImagePath = null;
+                
+                // Reset form
+                document.getElementById('analysisForm').reset();
+                document.getElementById('patientName').disabled = false;
+                clearImage();
+                
+                // Reset form title
+                const formTitle = document.querySelector('#uploadSection h3');
+                formTitle.innerHTML = `
+                    <i class="fas fa-upload text-blue-500 mr-3"></i>
+                    New Analysis
+                `;
+                
+                // Reset analyze button
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                analyzeBtn.innerHTML = '<i class="fas fa-microscope mr-2"></i>Analyze with AI';
+                
+                // Update toggle button
+                const toggleBtn = document.getElementById('toggleAnalysisMode');
+                toggleBtn.innerHTML = '<i class="fas fa-upload"></i> Upload New Image';
+                
+                Swal.fire({
+                    title: 'Switched to Upload Mode',
+                    text: 'You can now upload a new image for analysis',
+                    icon: 'info',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             }
         }
 

@@ -327,7 +327,6 @@ $stmt->close();
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-cyan-700 uppercase tracking-wider">Date</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-cyan-700 uppercase tracking-wider">Reason</th>
-                                        <th class="px-6 py-3 text-center text-xs font-semibold text-cyan-700 uppercase tracking-wider">Status</th>
                                         <th class="px-6 py-3 text-center text-xs font-semibold text-cyan-700 uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
@@ -364,11 +363,6 @@ $stmt->close();
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-gray-600">
                                                     <?php echo htmlspecialchars($day['reason'] ?: 'N/A'); ?>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                                    <span class="px-3 py-1 rounded-full text-xs font-medium <?php echo $statusClass; ?>">
-                                                        <?php echo $status; ?>
-                                                    </span>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-center">
                                                     <form action="../auth/manage_schedule.php" method="POST" class="delete-form">

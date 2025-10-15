@@ -26,46 +26,102 @@ define('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/model
 $dermatologistId = $_SESSION['dermatologist_id'];
 
 try {
-    // Validate input
-    if (!isset($_FILES['skin_image']) || $_FILES['skin_image']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception('No image uploaded or upload error occurred');
-    }
-
-    $image = $_FILES['skin_image'];
+    // Get analysis mode
+    $analysisMode = $_POST['analysis_mode'] ?? 'upload';
     $patientName = $_POST['patient_name'] ?? null;
     $patientAge = $_POST['patient_age'] ?? null;
     $patientGender = $_POST['patient_gender'] ?? null;
     $analysisPrompt = $_POST['analysis_prompt'] ?? '';
+    
+    $filePath = '';
+    $fileName = '';
+    $imageData = '';
+    $mimeType = '';
+    $appointmentId = null;
 
-    // Validate image
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!in_array($image['type'], $allowedTypes)) {
-        throw new Exception('Invalid image type. Please upload JPG, PNG, GIF, or WebP images.');
+    if ($analysisMode === 'appointment') {
+        // Handle appointment image analysis
+        $appointmentId = $_POST['appointment_id'] ?? null;
+        $appointmentImagePath = $_POST['appointment_image_path'] ?? null;
+        
+        if (!$appointmentId || !$appointmentImagePath) {
+            throw new Exception('Missing appointment information');
+        }
+        
+        // Construct full path to appointment image
+        $fullImagePath = '../../DermaSculpt_user/' . $appointmentImagePath;
+        
+        if (!file_exists($fullImagePath)) {
+            throw new Exception('Appointment image not found: ' . $appointmentImagePath);
+        }
+        
+        // Validate appointment belongs to this dermatologist
+        $appointmentStmt = $conn->prepare("SELECT appointment_id FROM appointments WHERE appointment_id = ? AND dermatologist_id = ?");
+        $appointmentStmt->bind_param("ii", $appointmentId, $dermatologistId);
+        $appointmentStmt->execute();
+        $appointmentResult = $appointmentStmt->get_result();
+        
+        if ($appointmentResult->num_rows === 0) {
+            throw new Exception('Unauthorized access to appointment');
+        }
+        $appointmentStmt->close();
+        
+        // Copy appointment image to analysis directory for record keeping
+        $uploadDir = '../uploads/skin_analysis/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $fileExtension = pathinfo($appointmentImagePath, PATHINFO_EXTENSION);
+        $fileName = 'appointment_analysis_' . $appointmentId . '_' . uniqid() . '.' . $fileExtension;
+        $filePath = $uploadDir . $fileName;
+        
+        if (!copy($fullImagePath, $filePath)) {
+            throw new Exception('Failed to copy appointment image for analysis');
+        }
+        
+        // Get image data for API
+        $imageData = base64_encode(file_get_contents($fullImagePath));
+        $mimeType = mime_content_type($fullImagePath);
+        
+    } else {
+        // Handle uploaded image analysis
+        if (!isset($_FILES['skin_image']) || $_FILES['skin_image']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('No image uploaded or upload error occurred');
+        }
+
+        $image = $_FILES['skin_image'];
+
+        // Validate image
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!in_array($image['type'], $allowedTypes)) {
+            throw new Exception('Invalid image type. Please upload JPG, PNG, GIF, or WebP images.');
+        }
+
+        if ($image['size'] > 10 * 1024 * 1024) { // 10MB limit
+            throw new Exception('Image size too large. Please upload images smaller than 10MB.');
+        }
+
+        // Create upload directory
+        $uploadDir = '../uploads/skin_analysis/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Generate unique filename
+        $fileExtension = pathinfo($image['name'], PATHINFO_EXTENSION);
+        $fileName = 'analysis_' . uniqid() . '.' . $fileExtension;
+        $filePath = $uploadDir . $fileName;
+
+        // Move uploaded file
+        if (!move_uploaded_file($image['tmp_name'], $filePath)) {
+            throw new Exception('Failed to save uploaded image');
+        }
+
+        // Convert image to base64 for Gemini API
+        $imageData = base64_encode(file_get_contents($filePath));
+        $mimeType = $image['type'];
     }
-
-    if ($image['size'] > 10 * 1024 * 1024) { // 10MB limit
-        throw new Exception('Image size too large. Please upload images smaller than 10MB.');
-    }
-
-    // Create upload directory
-    $uploadDir = '../uploads/skin_analysis/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-
-    // Generate unique filename
-    $fileExtension = pathinfo($image['name'], PATHINFO_EXTENSION);
-    $fileName = 'analysis_' . uniqid() . '.' . $fileExtension;
-    $filePath = $uploadDir . $fileName;
-
-    // Move uploaded file
-    if (!move_uploaded_file($image['tmp_name'], $filePath)) {
-        throw new Exception('Failed to save uploaded image');
-    }
-
-    // Convert image to base64 for Gemini API
-    $imageData = base64_encode(file_get_contents($filePath));
-    $mimeType = $image['type'];
 
     // Create comprehensive dermatology knowledge base prompt
     $knowledgeBase = getDermatologyKnowledgeBase();
@@ -80,27 +136,66 @@ try {
     $parsedResult = parseAIResponse($analysisResult);
 
     // Save to database
-    $stmt = $conn->prepare("
-        INSERT INTO skin_analysis 
-        (dermatologist_id, patient_name, patient_age, patient_gender, image_path, image_filename, 
-         analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
+    if ($appointmentId) {
+        // For appointment-based analysis, we need to add appointment_id column
+        // First check if the column exists, if not we'll add it
+        $checkColumnStmt = $conn->prepare("SHOW COLUMNS FROM skin_analysis LIKE 'appointment_id'");
+        $checkColumnStmt->execute();
+        $columnExists = $checkColumnStmt->get_result()->num_rows > 0;
+        $checkColumnStmt->close();
+        
+        if (!$columnExists) {
+            // Add appointment_id column
+            $conn->query("ALTER TABLE skin_analysis ADD COLUMN appointment_id INT(11) NULL AFTER dermatologist_id");
+            $conn->query("ALTER TABLE skin_analysis ADD CONSTRAINT fk_skin_analysis_appointment FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE SET NULL");
+        }
+        
+        $stmt = $conn->prepare("
+            INSERT INTO skin_analysis 
+            (dermatologist_id, appointment_id, patient_name, patient_age, patient_gender, image_path, image_filename, 
+             analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
 
-    $stmt->bind_param(
-        "isisssssiss",
-        $dermatologistId,
-        $patientName,
-        $patientAge,
-        $patientGender,
-        $filePath,
-        $fileName,
-        $analysisPrompt,
-        $parsedResult['diagnosis'],
-        $parsedResult['confidence'],
-        json_encode($parsedResult['conditions']),
-        $parsedResult['recommendations']
-    );
+        $stmt->bind_param(
+            "iisisssssiss",
+            $dermatologistId,
+            $appointmentId,
+            $patientName,
+            $patientAge,
+            $patientGender,
+            $filePath,
+            $fileName,
+            $analysisPrompt,
+            $parsedResult['diagnosis'],
+            $parsedResult['confidence'],
+            json_encode($parsedResult['conditions']),
+            $parsedResult['recommendations']
+        );
+    } else {
+        // Regular analysis without appointment
+        $stmt = $conn->prepare("
+            INSERT INTO skin_analysis 
+            (dermatologist_id, patient_name, patient_age, patient_gender, image_path, image_filename, 
+             analysis_prompt, ai_diagnosis, confidence_score, detected_conditions, recommendations) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->bind_param(
+            "isisssssiss",
+            $dermatologistId,
+            $patientName,
+            $patientAge,
+            $patientGender,
+            $filePath,
+            $fileName,
+            $analysisPrompt,
+            $parsedResult['diagnosis'],
+            $parsedResult['confidence'],
+            json_encode($parsedResult['conditions']),
+            $parsedResult['recommendations']
+        );
+    }
 
     if (!$stmt->execute()) {
         throw new Exception('Failed to save analysis to database');

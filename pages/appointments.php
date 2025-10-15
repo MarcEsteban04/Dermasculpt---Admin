@@ -20,19 +20,6 @@ $derma = $result->fetch_assoc();
 $sidebar_firstName = htmlspecialchars($derma['first_name'] ?? 'Dermatologist');
 $profilePicturePath = isset($derma['profile_picture_url']) && !empty($derma['profile_picture_url']) ? '../' . htmlspecialchars($derma['profile_picture_url']) : 'https://placehold.co/100x100/E2E8F0/4A5568?text=Dr';
 
-// Auto-cancel past appointments that are still pending or scheduled
-$currentDateTime = date('Y-m-d H:i:s');
-$autoCancelStmt = $conn->prepare("
-    UPDATE appointments 
-    SET status = 'Cancelled' 
-    WHERE dermatologist_id = ? 
-    AND status IN ('Pending', 'Scheduled', 'Accepted') 
-    AND CONCAT(appointment_date, ' ', appointment_time) < ?
-");
-$autoCancelStmt->bind_param("is", $dermatologistId, $currentDateTime);
-$autoCancelStmt->execute();
-$autoCancelStmt->close();
-
 // Get all appointments for calendar view
 $sql = "SELECT appointment_id, patient_name, appointment_date, appointment_time, status FROM appointments WHERE dermatologist_id = ? ORDER BY appointment_date ASC, appointment_time ASC";
 $stmt = $conn->prepare($sql);
@@ -332,6 +319,9 @@ function getStatusBadgeClass($status)
                     <p class="text-cyan-800 mt-1">View and manage patient appointments in calendar format.</p>
                 </div>
                 <div class="flex gap-2">
+                    <button onclick="openCreateAppointmentModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2 shadow-lg">
+                        <i class="fas fa-plus"></i> Create Appointment
+                    </button>
                     <button onclick="manualRefresh()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
@@ -521,6 +511,224 @@ function getStatusBadgeClass($status)
             </form>
         </div>
     </div>
+
+    <!-- Create Appointment Modal -->
+    <div id="createAppointmentModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-50" onclick="closeModal('createAppointmentModal')"></div>
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-xl font-semibold text-purple-700 flex items-center">
+                    <i class="fas fa-plus mr-2"></i>Create New Appointment
+                </h3>
+                <button onclick="closeModal('createAppointmentModal')" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <form id="createAppointmentForm" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="relative">
+                            <input type="text" id="patient_name" name="patient_name" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Patient Name" required>
+                            <label for="patient_name" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Patient Name</label>
+                        </div>
+                        <div class="relative">
+                            <input type="email" id="patient_email" name="email" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Patient Email" required>
+                            <label for="patient_email" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Patient Email</label>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="relative">
+                            <input type="tel" id="patient_phone" name="phone_number" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Phone Number">
+                            <label for="patient_phone" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Phone Number</label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="relative">
+                            <input type="date" id="appointment_date" name="appointment_date" min="<?php echo date('Y-m-d'); ?>" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" required>
+                            <label for="appointment_date" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700">Appointment Date</label>
+                        </div>
+                        <div class="relative">
+                            <input type="time" id="appointment_time" name="appointment_time" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" required>
+                            <label for="appointment_time" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700">Appointment Time</label>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <textarea id="reason_for_appointment" name="reason_for_appointment" rows="3" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Reason for Appointment"></textarea>
+                        <label for="reason_for_appointment" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Reason for Appointment</label>
+                    </div>
+
+                    <div class="relative">
+                        <textarea id="dermatologist_notes" name="dermatologist_notes" rows="3" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Doctor's Notes (Optional)"></textarea>
+                        <label for="dermatologist_notes" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Doctor's Notes (Optional)</label>
+                    </div>
+
+                    <div class="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-info-circle text-purple-600 mr-2"></i>
+                            <h4 class="font-medium text-purple-800">Appointment Information</h4>
+                        </div>
+                        <ul class="text-sm text-purple-700 space-y-1">
+                            <li>• New appointments will be created with "Scheduled" status</li>
+                            <li>• Patient will receive email notification if email is provided</li>
+                            <li>• You can modify appointment details later if needed</li>
+                        </ul>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t">
+                        <button type="button" onclick="closeModal('createAppointmentModal')" class="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 font-semibold">
+                            Cancel
+                        </button>
+                        <button type="submit" id="createAppointmentBtn" class="bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-semibold flex items-center">
+                            <i class="fas fa-plus mr-2"></i>Create Appointment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar-based Appointment Modal -->
+    <div id="calendarAppointmentModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-50" onclick="closeModal('calendarAppointmentModal')"></div>
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-xl font-semibold text-purple-700 flex items-center">
+                    <i class="fas fa-calendar-plus mr-2"></i>Book Appointment for <span id="selectedDateDisplay" class="text-cyan-600 ml-2"></span>
+                </h3>
+                <button onclick="closeModal('calendarAppointmentModal')" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <!-- Step 1: Time Selection -->
+                <div id="timeSelectionStep" class="space-y-6">
+                    <div class="bg-gradient-to-r from-purple-50 to-cyan-50 p-4 rounded-lg border border-purple-200">
+                        <h4 class="font-semibold text-purple-800 mb-2 flex items-center">
+                            <i class="fas fa-clock mr-2"></i>Select Available Time Slot
+                        </h4>
+                        <p class="text-sm text-purple-600">Choose from available time slots below. Unavailable times are disabled.</p>
+                    </div>
+                    
+                    <div id="timeSlotContainer" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <!-- Time slots will be generated here -->
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="button" onclick="closeModal('calendarAppointmentModal')" class="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 font-semibold">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Patient Details Form -->
+                <div id="patientDetailsStep" class="space-y-6 hidden">
+                    <div class="bg-gradient-to-r from-green-50 to-cyan-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-semibold text-green-800 mb-2 flex items-center">
+                            <i class="fas fa-user mr-2"></i>Patient Information
+                        </h4>
+                        <p class="text-sm text-green-600">
+                            Selected: <span id="selectedTimeDisplay" class="font-semibold"></span> on <span id="selectedDateDisplay2" class="font-semibold"></span>
+                        </p>
+                    </div>
+
+                    <form id="calendarAppointmentForm" class="space-y-6">
+                        <input type="hidden" id="calendar_appointment_date" name="appointment_date">
+                        <input type="hidden" id="calendar_appointment_time" name="appointment_time">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="relative">
+                                <input type="text" id="calendar_patient_name" name="patient_name" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Full Name" required>
+                                <label for="calendar_patient_name" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Patient Full Name</label>
+                            </div>
+                            <div class="relative">
+                                <input type="email" id="calendar_patient_email" name="email" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Email Address" required>
+                                <label for="calendar_patient_email" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Email Address</label>
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <input type="tel" id="calendar_patient_phone" name="phone_number" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Phone Number">
+                            <label for="calendar_patient_phone" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Phone Number</label>
+                        </div>
+
+                        <div class="relative">
+                            <textarea id="calendar_reason_for_appointment" name="reason_for_appointment" rows="3" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Reason for Appointment"></textarea>
+                            <label for="calendar_reason_for_appointment" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Reason for Appointment</label>
+                        </div>
+
+                        <div class="relative">
+                            <textarea id="calendar_dermatologist_notes" name="dermatologist_notes" rows="3" class="peer w-full rounded-lg border border-gray-300 bg-white px-3 py-3 placeholder-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Doctor's Notes (Optional)"></textarea>
+                            <label for="calendar_dermatologist_notes" class="pointer-events-none absolute -top-2 left-3 bg-white px-1 text-xs text-purple-700 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-500 peer-focus:-top-2 peer-focus:text-purple-700">Doctor's Notes (Optional)</label>
+                        </div>
+
+                        <div class="flex justify-between gap-3 pt-4 border-t">
+                            <button type="button" onclick="backToTimeSelection()" class="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 font-semibold flex items-center">
+                                <i class="fas fa-arrow-left mr-2"></i>Back to Time Selection
+                            </button>
+                            <button type="submit" id="calendarCreateAppointmentBtn" class="bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-semibold flex items-center">
+                                <i class="fas fa-plus mr-2"></i>Create Appointment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modals -->
+    <div id="confirmationModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 id="confirmModalTitle" class="text-xl font-semibold">Confirm Action</h3>
+                <button onclick="closeConfirmationModal()" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div id="confirmModalIcon" class="text-center mb-4">
+                    <!-- Icon will be inserted here -->
+                </div>
+                <p id="confirmModalMessage" class="text-gray-700 text-center mb-6">Are you sure you want to proceed?</p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeConfirmationModal()" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 font-semibold">
+                        Cancel
+                    </button>
+                    <button id="confirmModalButton" class="py-2 px-4 rounded-lg font-semibold text-white">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="alertModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 id="alertModalTitle" class="text-xl font-semibold">Alert</h3>
+                <button onclick="closeAlertModal()" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div id="alertModalIcon" class="text-center mb-4">
+                    <!-- Icon will be inserted here -->
+                </div>
+                <p id="alertModalMessage" class="text-gray-700 text-center mb-6">Message</p>
+                <div class="text-center">
+                    <button onclick="closeAlertModal()" id="alertModalButton" class="py-2 px-6 rounded-lg font-semibold text-white">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner Component -->
+    <div class="loading-spinner hidden">
+        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+
     <script>
         // Global appointments data for both AI assistant and calendar
         const appointments = <?php
@@ -535,17 +743,115 @@ function getStatusBadgeClass($status)
                                 }, $appointments));
                                 ?>;
 
+        // Availability data
+        let availabilityData = {
+            daysOff: [],
+            bookedSlots: {}
+        };
+        let calendar; // Store calendar reference globally
+
         // Bulk selection variables
         let selectedAppointments = new Set();
         let isSelectionMode = false;
-        
-        // AI Assistant toggle state
-        let isAIAssistantVisible = false;
-        
-        // Real-time update variables
-        let lastUpdateTime = new Date().toISOString().slice(0, 19).replace('T', ' '); // MySQL datetime format
-        let updateInterval;
-        let calendar; // Store calendar reference globally
+
+        // Custom Modal Functions
+        function showConfirmation(title, message, confirmText, confirmColor, onConfirm, icon = 'question') {
+            const modal = document.getElementById('confirmationModal');
+            const titleEl = document.getElementById('confirmModalTitle');
+            const messageEl = document.getElementById('confirmModalMessage');
+            const buttonEl = document.getElementById('confirmModalButton');
+            const iconEl = document.getElementById('confirmModalIcon');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            buttonEl.textContent = confirmText;
+            buttonEl.className = `py-2 px-4 rounded-lg font-semibold text-white ${confirmColor}`;
+
+            // Set icon
+            const iconMap = {
+                'question': '<i class="fas fa-question-circle text-4xl text-blue-500"></i>',
+                'warning': '<i class="fas fa-exclamation-triangle text-4xl text-yellow-500"></i>',
+                'danger': '<i class="fas fa-exclamation-circle text-4xl text-red-500"></i>'
+            };
+            iconEl.innerHTML = iconMap[icon] || iconMap['question'];
+
+            // Set up confirm button click
+            buttonEl.onclick = () => {
+                // Don't close modal immediately - let onConfirm handle the API call and then close
+                onConfirm();
+            };
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.add('hidden');
+        }
+
+        function showAlert(title, message, type = 'info', callback = null) {
+            const modal = document.getElementById('alertModal');
+            const titleEl = document.getElementById('alertModalTitle');
+            const messageEl = document.getElementById('alertModalMessage');
+            const buttonEl = document.getElementById('alertModalButton');
+            const iconEl = document.getElementById('alertModalIcon');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            // Set button color and icon based on type
+            const typeConfig = {
+                'success': {
+                    color: 'bg-green-600 hover:bg-green-700',
+                    icon: '<i class="fas fa-check-circle text-4xl text-green-500"></i>'
+                },
+                'error': {
+                    color: 'bg-red-600 hover:bg-red-700',
+                    icon: '<i class="fas fa-times-circle text-4xl text-red-500"></i>'
+                },
+                'warning': {
+                    color: 'bg-yellow-600 hover:bg-yellow-700',
+                    icon: '<i class="fas fa-exclamation-triangle text-4xl text-yellow-500"></i>'
+                },
+                'info': {
+                    color: 'bg-blue-600 hover:bg-blue-700',
+                    icon: '<i class="fas fa-info-circle text-4xl text-blue-500"></i>'
+                }
+            };
+
+            const config = typeConfig[type] || typeConfig['info'];
+            buttonEl.className = `py-2 px-6 rounded-lg font-semibold text-white ${config.color}`;
+            iconEl.innerHTML = config.icon;
+
+            // Set up callback
+            buttonEl.onclick = () => {
+                closeAlertModal();
+                if (callback) callback();
+            };
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeAlertModal() {
+            document.getElementById('alertModal').classList.add('hidden');
+        }
+
+        // Loading Spinner Functions
+        function showButtonLoading(button, originalText) {
+            const spinner = document.querySelector('.loading-spinner').cloneNode(true);
+            spinner.classList.remove('hidden');
+            button.innerHTML = '';
+            button.appendChild(spinner);
+            button.appendChild(document.createTextNode(' Loading...'));
+            button.disabled = true;
+            button.dataset.originalText = originalText;
+        }
+
+        function hideButtonLoading(button) {
+            const originalText = button.dataset.originalText || 'Submit';
+            button.innerHTML = originalText;
+            button.disabled = false;
+            delete button.dataset.originalText;
+        }
 
         const aiAssistantForm = document.getElementById('aiAssistantForm');
         const aiPromptInput = document.getElementById('aiPrompt');
@@ -691,6 +997,19 @@ function getStatusBadgeClass($status)
                         openDetailsModal(appointmentId);
                     }
                 },
+                dateClick: function(info) {
+                    // Handle date click for creating new appointments
+                    const clickedDate = info.dateStr;
+                    const today = new Date().toISOString().split('T')[0];
+                    
+                    // Only allow future dates
+                    if (clickedDate < today) {
+                        showAlert('Invalid Date', 'Cannot book appointments for past dates.', 'warning');
+                        return;
+                    }
+                    
+                    openCalendarAppointmentModal(clickedDate);
+                },
                 eventDidMount: function(info) {
                     // Add tooltip
                     const status = info.event.extendedProps.status;
@@ -706,7 +1025,9 @@ function getStatusBadgeClass($status)
                     hour: 'numeric',
                     minute: '2-digit',
                     meridiem: 'short'
-                }
+                },
+                selectable: true,
+                selectMirror: true
             });
 
             calendar.render();
@@ -800,10 +1121,10 @@ function getStatusBadgeClass($status)
                         actionButtons = `
                             <div class="flex justify-between items-center mt-4">
                                 <div class="flex gap-2">
-                                    <button onclick="showConfirmation('accept', ${appointmentId}); closeModal('detailsModal');" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                    <button onclick="showAppointmentConfirmation('accept', ${appointmentId}); closeModal('detailsModal');" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2">
                                         <i class="fas fa-check"></i> Accept
                                     </button>
-                                    <button onclick="showConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
+                                    <button onclick="showAppointmentConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
                                         <i class="fas fa-times"></i> Cancel
                                     </button>
                                 </div>
@@ -821,7 +1142,7 @@ function getStatusBadgeClass($status)
                                     <button onclick="openRescheduleModal(${appointmentId}, '${data.appointment_date}', '${data.appointment_time}'); closeModal('detailsModal');" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
                                         <i class="fas fa-calendar-alt"></i> Reschedule
                                     </button>
-                                    <button onclick="showConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
+                                    <button onclick="showAppointmentConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
                                         <i class="fas fa-times"></i> Cancel
                                     </button>
                                 </div>
@@ -841,7 +1162,7 @@ function getStatusBadgeClass($status)
                                 <button onclick="openRescheduleModal(${appointmentId}, '${data.appointment_date}', '${data.appointment_time}'); closeModal('detailsModal');" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
                                     <i class="fas fa-calendar-alt"></i> Reschedule
                                 </button>
-                                <button onclick="showConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
+                                <button onclick="showAppointmentConfirmation('cancel', ${appointmentId}); closeModal('detailsModal');" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
                                     <i class="fas fa-times"></i> Cancel
                                 </button>
                             </div>
@@ -874,72 +1195,80 @@ function getStatusBadgeClass($status)
 
         // Quick Action Functions
         async function sendReminder(appointmentId) {
-            const result = await Swal.fire({
-                title: 'Send Reminder',
-                text: 'Send appointment reminder to patient?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Send Reminder'
-            });
+            showConfirmation(
+                'Send Reminder',
+                'Send appointment reminder to patient?',
+                'Send Reminder',
+                'bg-blue-600 hover:bg-blue-700',
+                async () => {
+                    const confirmButton = document.getElementById('confirmModalButton');
+                    showButtonLoading(confirmButton, 'Send Reminder');
+                    
+                    try {
+                        const response = await fetch('../auth/manage_appointment.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: `action=send_reminder&appointment_id=${appointmentId}`
+                        });
 
-            if (result.isConfirmed) {
-                const formData = new FormData();
-                formData.append('action', 'send_reminder');
-                formData.append('appointment_id', appointmentId);
+                        const result = await response.json();
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
 
-                try {
-                    const response = await fetch('../auth/manage_appointment.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const result = await response.json();
-
-                    if (result.success) {
-                        Swal.fire('Sent!', 'Appointment reminder has been sent to the patient.', 'success');
-                    } else {
-                        Swal.fire('Error!', result.message, 'error');
+                        if (result.success) {
+                            showAlert('Sent!', 'Appointment reminder has been sent to the patient.', 'success');
+                        } else {
+                            showAlert('Error!', result.message, 'error');
+                        }
+                    } catch (error) {
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Error!', 'Failed to send reminder.', 'error');
                     }
-                } catch (error) {
-                    Swal.fire('Error!', 'Failed to send reminder.', 'error');
-                }
-            }
+                },
+                'question'
+            );
         }
 
         async function markCompleted(appointmentId) {
-            const result = await Swal.fire({
-                title: 'Mark as Completed',
-                text: 'Mark this appointment as completed?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#3b82f6',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Mark Completed'
-            });
+            showConfirmation(
+                'Mark as Completed',
+                'Mark this appointment as completed?',
+                'Mark Completed',
+                'bg-blue-600 hover:bg-blue-700',
+                async () => {
+                    const confirmButton = document.getElementById('confirmModalButton');
+                    showButtonLoading(confirmButton, 'Mark Completed');
+                    
+                    const formData = new FormData();
+                    formData.append('action', 'complete');
+                    formData.append('appointment_id', appointmentId);
 
-            if (result.isConfirmed) {
-                const formData = new FormData();
-                formData.append('action', 'complete');
-                formData.append('appointment_id', appointmentId);
+                    try {
+                        const response = await fetch('../auth/manage_appointment.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const result = await response.json();
+                        
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
 
-                try {
-                    const response = await fetch('../auth/manage_appointment.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const result = await response.json();
-
-                    if (result.success) {
-                        Swal.fire('Completed!', 'Appointment marked as completed.', 'success');
-                        location.reload();
-                    } else {
-                        Swal.fire('Error!', result.message, 'error');
+                        if (result.success) {
+                            showAlert('Completed!', 'Appointment marked as completed.', 'success', () => location.reload());
+                        } else {
+                            showAlert('Error!', result.message, 'error');
+                        }
+                    } catch (error) {
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Error!', 'Failed to update appointment status.', 'error');
                     }
-                } catch (error) {
-                    Swal.fire('Error!', 'Failed to update appointment status.', 'error');
-                }
-            }
+                },
+                'question'
+            );
         }
 
 
@@ -990,76 +1319,82 @@ function getStatusBadgeClass($status)
 
         async function bulkCancel() {
             if (selectedAppointments.size === 0) {
-                Swal.fire('No Selection', 'Please select appointments to cancel.', 'warning');
+                showAlert('No Selection', 'Please select appointments to cancel.', 'warning');
                 return;
             }
 
-            const result = await Swal.fire({
-                title: 'Cancel Appointments',
-                text: `Are you sure you want to cancel ${selectedAppointments.size} selected appointments?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, cancel them!'
-            });
-
-            if (result.isConfirmed) {
-                const promises = Array.from(selectedAppointments).map(appointmentId => {
-                    const formData = new FormData();
-                    formData.append('action', 'cancel');
-                    formData.append('appointment_id', appointmentId);
-                    return fetch('../auth/manage_appointment.php', {
-                        method: 'POST',
-                        body: formData
+            showConfirmation(
+                'Cancel Appointments',
+                `Are you sure you want to cancel ${selectedAppointments.size} selected appointments?`,
+                'Yes, cancel them!',
+                'bg-red-600 hover:bg-red-700',
+                async () => {
+                    const confirmButton = document.getElementById('confirmModalButton');
+                    showButtonLoading(confirmButton, 'Yes, cancel them!');
+                    
+                    const promises = Array.from(selectedAppointments).map(appointmentId => {
+                        const formData = new FormData();
+                        formData.append('action', 'cancel');
+                        formData.append('appointment_id', appointmentId);
+                        return fetch('../auth/manage_appointment.php', {
+                            method: 'POST',
+                            body: formData
+                        });
                     });
-                });
 
-                try {
-                    await Promise.all(promises);
-                    Swal.fire('Success!', 'Selected appointments have been cancelled.', 'success');
-                    location.reload(); // Refresh to update calendar
-                } catch (error) {
-                    Swal.fire('Error!', 'Some appointments could not be cancelled.', 'error');
-                }
-            }
+                    try {
+                        await Promise.all(promises);
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Success!', 'Selected appointments have been cancelled.', 'success', () => location.reload());
+                    } catch (error) {
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Error!', 'Some appointments could not be cancelled.', 'error');
+                    }
+                },
+                'warning'
+            );
         }
 
         async function bulkAccept() {
             if (selectedAppointments.size === 0) {
-                Swal.fire('No Selection', 'Please select appointments to accept.', 'warning');
+                showAlert('No Selection', 'Please select appointments to accept.', 'warning');
                 return;
             }
 
-            const result = await Swal.fire({
-                title: 'Accept Appointments',
-                text: `Are you sure you want to accept ${selectedAppointments.size} selected appointments?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, accept them!'
-            });
-
-            if (result.isConfirmed) {
-                const promises = Array.from(selectedAppointments).map(appointmentId => {
-                    const formData = new FormData();
-                    formData.append('action', 'accept');
-                    formData.append('appointment_id', appointmentId);
-                    return fetch('../auth/manage_appointment.php', {
-                        method: 'POST',
-                        body: formData
+            showConfirmation(
+                'Accept Appointments',
+                `Are you sure you want to accept ${selectedAppointments.size} selected appointments?`,
+                'Yes, accept them!',
+                'bg-green-600 hover:bg-green-700',
+                async () => {
+                    const confirmButton = document.getElementById('confirmModalButton');
+                    showButtonLoading(confirmButton, 'Yes, accept them!');
+                    
+                    const promises = Array.from(selectedAppointments).map(appointmentId => {
+                        const formData = new FormData();
+                        formData.append('action', 'accept');
+                        formData.append('appointment_id', appointmentId);
+                        return fetch('../auth/manage_appointment.php', {
+                            method: 'POST',
+                            body: formData
+                        });
                     });
-                });
 
-                try {
-                    await Promise.all(promises);
-                    Swal.fire('Success!', 'Selected appointments have been accepted.', 'success');
-                    location.reload(); // Refresh to update calendar
-                } catch (error) {
-                    Swal.fire('Error!', 'Some appointments could not be accepted.', 'error');
-                }
-            }
+                    try {
+                        await Promise.all(promises);
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Success!', 'Selected appointments have been accepted.', 'success', () => location.reload());
+                    } catch (error) {
+                        hideButtonLoading(confirmButton);
+                        closeConfirmationModal();
+                        showAlert('Error!', 'Some appointments could not be accepted.', 'error');
+                    }
+                },
+                'question'
+            );
         }
 
         // Manual refresh function
@@ -1224,11 +1559,67 @@ function getStatusBadgeClass($status)
             }
         });
 
-        function openRescheduleModal(appointmentId, date, time) {
+        async function openRescheduleModal(appointmentId, date, time) {
             document.getElementById('reschedule_appointment_id').value = appointmentId;
             document.getElementById('reschedule_date').value = date;
             document.getElementById('reschedule_time').value = time;
+            
+            // Load availability data for reschedule modal
+            await loadAvailabilityData();
+            
+            // Set up availability checking for reschedule form
+            const rescheduleDate = document.getElementById('reschedule_date');
+            const rescheduleTime = document.getElementById('reschedule_time');
+            
+            // Add availability validation to reschedule date
+            rescheduleDate.removeEventListener('input', validateRescheduleDateSelection);
+            rescheduleDate.addEventListener('input', validateRescheduleDateSelection);
+            
+            // Add availability validation to reschedule time
+            rescheduleTime.removeEventListener('input', validateRescheduleTimeSelection);
+            rescheduleTime.addEventListener('input', validateRescheduleTimeSelection);
+            
             openModal('rescheduleModal');
+        }
+        
+        // Validate reschedule date selection
+        function validateRescheduleDateSelection(e) {
+            const selectedDate = e.target.value;
+            
+            // Check if selected date is a day off
+            if (availabilityData.daysOff.includes(selectedDate)) {
+                showAlert('Date Unavailable', 'This date is marked as a day off. Please select another date.', 'warning');
+                e.target.value = '';
+                return;
+            }
+            
+            // Update available time slots for the selected date
+            const rescheduleTime = document.getElementById('reschedule_time');
+            const bookedTimes = availabilityData.bookedSlots[selectedDate] || [];
+            rescheduleTime.dataset.bookedTimes = JSON.stringify(bookedTimes);
+        }
+        
+        // Validate reschedule time selection
+        function validateRescheduleTimeSelection(e) {
+            const selectedTime = e.target.value;
+            const bookedTimes = JSON.parse(e.target.dataset.bookedTimes || '[]');
+            
+            // Check if selected time is already booked
+            if (bookedTimes.includes(selectedTime)) {
+                showAlert('Time Slot Unavailable', 'This time slot is already booked. Please select another time.', 'warning');
+                e.target.value = '';
+                return;
+            }
+            
+            // Validate business hours
+            const hour = parseInt(selectedTime.split(':')[0]);
+            const minute = parseInt(selectedTime.split(':')[1]);
+            
+            // Check if time is outside 7:00 AM - 9:30 PM
+            if (hour < 7 || hour > 21 || (hour === 21 && minute > 30)) {
+                showAlert('Invalid Time', 'Please select a time between 7:00 AM and 9:30 PM', 'warning');
+                e.target.value = '';
+            }
         }
 
         function openTransferModal(appointmentId) {
@@ -1238,58 +1629,70 @@ function getStatusBadgeClass($status)
 
         document.getElementById('rescheduleForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            handleAppointmentAction('reschedule', this.elements.appointment_id.value, {
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            showButtonLoading(submitButton, 'Save Changes');
+            
+            handleAppointmentAction('reschedule', this.elements.appointment_id.value, submitButton, {
                 appointment_date: this.elements.appointment_date.value,
                 appointment_time: this.elements.appointment_time.value
             });
-            closeModal('rescheduleModal');
+            // Don't close modal immediately - let handleAppointmentAction close it after API call
         });
 
         document.getElementById('transferForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            handleAppointmentAction('transfer', this.elements.appointment_id.value, {
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            showButtonLoading(submitButton, 'Confirm Transfer');
+            
+            handleAppointmentAction('transfer', this.elements.appointment_id.value, submitButton, {
                 new_dermatologist_id: this.elements.new_dermatologist_id.value
             });
-            closeModal('transferModal');
+            // Don't close modal immediately - let handleAppointmentAction close it after API call
         });
 
-        function showConfirmation(action, appointmentId) {
-            const config = {
-                title: 'Are you sure?',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                focusConfirm: false,
-            };
+        function showAppointmentConfirmation(action, appointmentId) {
+            let title, message, confirmText, confirmColor, icon;
 
             if (action === 'accept') {
-                config.title = 'Accept Appointment?';
-                config.text = 'The patient will be notified of the confirmation.';
-                config.icon = 'question';
-                config.confirmButtonText = 'Yes, accept it!';
-                config.confirmButtonColor = '#16a34a';
+                title = 'Accept Appointment?';
+                message = 'The patient will be notified of the confirmation.';
+                confirmText = 'Yes, accept it!';
+                confirmColor = 'bg-green-600 hover:bg-green-700';
+                icon = 'question';
             } else if (action === 'cancel') {
-                config.title = 'Cancel Appointment?';
-                config.text = 'This action cannot be undone.';
-                config.icon = 'warning';
-                config.confirmButtonText = 'Yes, cancel it!';
-                config.confirmButtonColor = '#dc2626';
+                title = 'Cancel Appointment?';
+                message = 'This action cannot be undone.';
+                confirmText = 'Yes, cancel it!';
+                confirmColor = 'bg-red-600 hover:bg-red-700';
+                icon = 'warning';
             }
 
-            Swal.fire(config).then((result) => {
-                if (result.isConfirmed) {
-                    handleAppointmentAction(action, appointmentId);
-                }
-            });
+            showConfirmation(title, message, confirmText, confirmColor, () => {
+                const confirmButton = document.getElementById('confirmModalButton');
+                showButtonLoading(confirmButton, confirmText);
+                handleAppointmentAction(action, appointmentId, confirmButton);
+            }, icon);
         }
 
-        async function handleAppointmentAction(action, appointmentId, extraData = {}) {
+        async function handleAppointmentAction(action, appointmentId, buttonElement = null, extraData = {}) {
             const formData = new FormData();
             formData.append('action', action);
             formData.append('appointment_id', appointmentId);
 
-            for (const key in extraData) {
-                formData.append(key, extraData[key]);
+            // Handle extraData - check if buttonElement is actually extraData (for backward compatibility)
+            if (buttonElement && typeof buttonElement === 'object' && !buttonElement.tagName && !buttonElement.nodeType) {
+                // buttonElement is actually extraData
+                for (const key in buttonElement) {
+                    formData.append(key, buttonElement[key]);
+                }
+                buttonElement = null;
+            } else if (extraData && typeof extraData === 'object') {
+                for (const key in extraData) {
+                    formData.append(key, extraData[key]);
+                }
             }
 
             try {
@@ -1299,31 +1702,371 @@ function getStatusBadgeClass($status)
                 });
                 const result = await response.json();
 
-                if (result.success) {
-                    Swal.fire({
-                        title: 'Success!',
-                        text: result.message,
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
+                if (buttonElement) {
+                    hideButtonLoading(buttonElement);
+                }
+
+                // Close appropriate modal after API call completes
+                if (action === 'reschedule') {
+                    closeModal('rescheduleModal');
+                } else if (action === 'transfer') {
+                    closeModal('transferModal');
                 } else {
-                    Swal.fire({
-                        title: 'Error!',
-                        text: result.message || 'An unknown error occurred.',
-                        icon: 'error',
-                        confirmButtonColor: '#dc2626'
-                    });
+                    closeConfirmationModal();
+                }
+
+                if (result.success) {
+                    showAlert('Success!', result.message, 'success', () => location.reload());
+                } else {
+                    showAlert('Error!', result.message || 'An unknown error occurred.', 'error');
                 }
             } catch (error) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An unexpected network error occurred.',
-                    icon: 'error',
-                    confirmButtonColor: '#dc2626'
-                });
+                if (buttonElement) {
+                    hideButtonLoading(buttonElement);
+                }
+                
+                // Close appropriate modal on error
+                if (action === 'reschedule') {
+                    closeModal('rescheduleModal');
+                } else if (action === 'transfer') {
+                    closeModal('transferModal');
+                } else {
+                    closeConfirmationModal();
+                }
+                
+                showAlert('Error!', 'An unexpected network error occurred.', 'error');
             }
         }
+
+        // Load availability data
+        async function loadAvailabilityData() {
+            try {
+                const response = await fetch('../backend/get_availability.php');
+                const result = await response.json();
+                
+                if (result.success) {
+                    availabilityData = {
+                        daysOff: result.daysOff || [],
+                        bookedSlots: result.bookedSlots || {}
+                    };
+                    updateDatePickerAvailability();
+                } else {
+                    console.error('Failed to load availability data:', result.message);
+                }
+            } catch (error) {
+                console.error('Error loading availability data:', error);
+            }
+        }
+
+        // Update date picker to disable unavailable dates
+        function updateDatePickerAvailability() {
+            const dateInput = document.getElementById('appointment_date');
+            
+            // Remove existing event listener if any
+            dateInput.removeEventListener('input', validateDateSelection);
+            
+            // Add new event listener
+            dateInput.addEventListener('input', validateDateSelection);
+            
+            // Set min date to today
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.min = today;
+        }
+
+        // Validate date selection
+        function validateDateSelection(e) {
+            const selectedDate = e.target.value;
+            
+            // Check if selected date is a day off
+            if (availabilityData.daysOff.includes(selectedDate)) {
+                showAlert('Date Unavailable', 'This date is marked as a day off. Please select another date.', 'warning');
+                e.target.value = '';
+                return;
+            }
+            
+            // Update available time slots for the selected date
+            updateAvailableTimeSlots(selectedDate);
+        }
+
+        // Update available time slots based on selected date
+        function updateAvailableTimeSlots(selectedDate) {
+            const timeInput = document.getElementById('appointment_time');
+            const bookedTimes = availabilityData.bookedSlots[selectedDate] || [];
+            
+            // Reset time input
+            timeInput.value = '';
+            
+            // Add event listener to validate time selection
+            timeInput.removeEventListener('input', validateTimeSelection);
+            timeInput.addEventListener('input', validateTimeSelection);
+            
+            // Store booked times for validation
+            timeInput.dataset.bookedTimes = JSON.stringify(bookedTimes);
+        }
+
+        // Validate time selection
+        function validateTimeSelection(e) {
+            const selectedTime = e.target.value;
+            const bookedTimes = JSON.parse(e.target.dataset.bookedTimes || '[]');
+            
+            // Check if selected time is already booked
+            if (bookedTimes.includes(selectedTime)) {
+                showAlert('Time Slot Unavailable', 'This time slot is already booked. Please select another time.', 'warning');
+                e.target.value = '';
+                return;
+            }
+            
+            // Validate business hours
+            const hour = parseInt(selectedTime.split(':')[0]);
+            const minute = parseInt(selectedTime.split(':')[1]);
+            
+            // Check if time is outside 7:00 AM - 9:30 PM
+            if (hour < 7 || hour > 21 || (hour === 21 && minute > 30)) {
+                showAlert('Invalid Time', 'Please select a time between 7:00 AM and 9:30 PM', 'warning');
+                e.target.value = '';
+            }
+        }
+
+        // Create Appointment Modal Functions
+        async function openCreateAppointmentModal() {
+            document.getElementById('createAppointmentModal').classList.remove('hidden');
+            
+            // Load availability data
+            await loadAvailabilityData();
+            
+            // Set default date to today (if available)
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('appointment_date');
+            
+            if (!availabilityData.daysOff.includes(today)) {
+                dateInput.value = today;
+                updateAvailableTimeSlots(today);
+            }
+            
+            // Set default time to next available hour
+            const now = new Date();
+            now.setHours(now.getHours() + 1);
+            now.setMinutes(0);
+            const timeString = now.toTimeString().slice(0, 5);
+            const timeInput = document.getElementById('appointment_time');
+            
+            // Only set time if it's not booked
+            const bookedTimes = availabilityData.bookedSlots[today] || [];
+            if (!bookedTimes.includes(timeString)) {
+                timeInput.value = timeString;
+            }
+        }
+
+        // Handle Create Appointment Form Submission
+        document.getElementById('createAppointmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const createBtn = document.getElementById('createAppointmentBtn');
+            
+            // Disable button and show loading
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+
+            try {
+                const response = await fetch('../backend/create_appointment.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Close modal
+                    closeModal('createAppointmentModal');
+                    
+                    // Reset form
+                    document.getElementById('createAppointmentForm').reset();
+                    
+                    // Show success message
+                    showAlert('Success!', result.message, 'success', () => location.reload());
+                } else {
+                    showAlert('Error!', result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error!', 'Network error. Please try again.', 'error');
+            } finally {
+                // Re-enable button
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create Appointment';
+            }
+        });
+
+        // Remove any phone number formatting - keep only digits
+        document.getElementById('patient_phone').addEventListener('input', function(e) {
+            // Allow only digits
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Calendar-based appointment functions
+        let selectedAppointmentDate = '';
+        let selectedAppointmentTime = '';
+
+        async function openCalendarAppointmentModal(selectedDate) {
+            selectedAppointmentDate = selectedDate;
+            
+            // Load availability data
+            await loadAvailabilityData();
+            
+            // Check if selected date is a day off
+            if (availabilityData.daysOff.includes(selectedDate)) {
+                showAlert('Date Unavailable', 'This date is marked as a day off. Please select another date.', 'warning');
+                return;
+            }
+            
+            // Format and display selected date
+            const formattedDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            document.getElementById('selectedDateDisplay').textContent = formattedDate;
+            document.getElementById('selectedDateDisplay2').textContent = formattedDate;
+            
+            // Generate time slots
+            generateTimeSlots(selectedDate);
+            
+            // Show modal and reset to time selection step
+            document.getElementById('timeSelectionStep').classList.remove('hidden');
+            document.getElementById('patientDetailsStep').classList.add('hidden');
+            document.getElementById('calendarAppointmentModal').classList.remove('hidden');
+        }
+
+        function generateTimeSlots(selectedDate) {
+            const container = document.getElementById('timeSlotContainer');
+            container.innerHTML = '';
+            
+            const bookedTimes = availabilityData.bookedSlots[selectedDate] || [];
+            
+            // Generate time slots from 7:00 AM to 9:30 PM (every 30 minutes)
+            for (let hour = 7; hour <= 21; hour++) {
+                for (let minute = 0; minute < 60; minute += 30) {
+                    // Don't show 10:00 PM slot
+                    if (hour === 22) break;
+                    
+                    const timeString = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+                    const displayTime = new Date('1970-01-01T' + timeString).toLocaleTimeString([], {
+                        hour: 'numeric',
+                        minute: '2-digit'
+                    });
+                    
+                    const isBooked = bookedTimes.includes(timeString);
+                    const isPastTime = isTimeInPast(selectedDate, timeString);
+                    const isDisabled = isBooked || isPastTime;
+                    
+                    const timeSlot = document.createElement('button');
+                    timeSlot.type = 'button';
+                    timeSlot.className = `p-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
+                        isDisabled 
+                            ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' 
+                            : 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400 hover:scale-105'
+                    }`;
+                    timeSlot.textContent = displayTime;
+                    timeSlot.disabled = isDisabled;
+                    
+                    if (!isDisabled) {
+                        timeSlot.onclick = () => selectTimeSlot(timeString, displayTime);
+                    }
+                    
+                    // Add status indicator
+                    if (isBooked) {
+                        timeSlot.innerHTML += '<br><span class="text-xs text-red-500">Booked</span>';
+                    } else if (isPastTime) {
+                        timeSlot.innerHTML += '<br><span class="text-xs text-gray-400">Past</span>';
+                    }
+                    
+                    container.appendChild(timeSlot);
+                }
+            }
+        }
+
+        function isTimeInPast(date, time) {
+            const today = new Date().toISOString().split('T')[0];
+            if (date > today) return false;
+            if (date < today) return true;
+            
+            // Same day - check time
+            const now = new Date();
+            const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            return time <= currentTime;
+        }
+
+        function selectTimeSlot(timeString, displayTime) {
+            selectedAppointmentTime = timeString;
+            
+            // Update hidden form fields
+            document.getElementById('calendar_appointment_date').value = selectedAppointmentDate;
+            document.getElementById('calendar_appointment_time').value = selectedAppointmentTime;
+            document.getElementById('selectedTimeDisplay').textContent = displayTime;
+            
+            // Move to patient details step
+            document.getElementById('timeSelectionStep').classList.add('hidden');
+            document.getElementById('patientDetailsStep').classList.remove('hidden');
+        }
+
+        function backToTimeSelection() {
+            document.getElementById('patientDetailsStep').classList.add('hidden');
+            document.getElementById('timeSelectionStep').classList.remove('hidden');
+        }
+
+        // Handle calendar appointment form submission
+        document.getElementById('calendarAppointmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const createBtn = document.getElementById('calendarCreateAppointmentBtn');
+            
+            // Disable button and show loading
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+
+            try {
+                const response = await fetch('../backend/create_appointment.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Close modal
+                    closeModal('calendarAppointmentModal');
+                    
+                    // Reset form
+                    document.getElementById('calendarAppointmentForm').reset();
+                    
+                    // Show success message
+                    showAlert('Success!', result.message, 'success', () => location.reload());
+                } else {
+                    showAlert('Error!', result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error!', 'Network error. Please try again.', 'error');
+            } finally {
+                // Re-enable button
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>Create Appointment';
+            }
+        });
+
+        // Remove any phone number formatting for calendar form - keep only digits
+        document.getElementById('calendar_patient_phone').addEventListener('input', function(e) {
+            // Allow only digits
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Initialize availability system on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load availability data when page loads
+            loadAvailabilityData();
+        });
     </script>
 </body>
 

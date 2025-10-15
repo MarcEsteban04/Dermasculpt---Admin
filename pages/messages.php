@@ -419,6 +419,14 @@ if ($activeUserId) {
                     <div id="ai-output" class="flex-1 p-4 overflow-y-auto ai-panel-content">
                         <p class="text-gray-500">Hello, Dr. <?php echo $sidebar_firstName; ?>. I can help you analyze this conversation. Choose an action below or ask me a question.</p>
                     </div>
+                    <!-- Appointment Management Section -->
+                    <div class="p-4 border-t bg-purple-50 flex-shrink-0">
+                        <h3 class="text-lg font-bold flex items-center mb-3"><i class="fas fa-calendar-alt text-purple-500 mr-2"></i>Appointment Actions</h3>
+                        <div id="appointment-actions" class="space-y-2">
+                            <!-- Appointment actions will be loaded here -->
+                        </div>
+                    </div>
+                    
                     <div class="p-4 border-t bg-slate-100 flex-shrink-0">
                         <div class="space-y-3">
                             <div class="grid grid-cols-2 gap-2">
@@ -865,6 +873,199 @@ if ($activeUserId) {
                     .catch(error => console.error('Error fetching conversation status:', error));
             }
         }, 5000);
+
+        // Appointment Management Functions
+        function loadAppointmentActions() {
+            if (!activeUserId) return;
+            
+            fetch(`../backend/get_user_appointments.php?user_id=${activeUserId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const appointmentActions = document.getElementById('appointment-actions');
+                    if (data.success && data.appointments && data.appointments.length > 0) {
+                        appointmentActions.innerHTML = '';
+                        data.appointments.forEach(appointment => {
+                            if (appointment.status === 'Scheduled' || appointment.status === 'Pending') {
+                                const appointmentDiv = document.createElement('div');
+                                appointmentDiv.className = 'bg-white border border-purple-200 rounded-lg p-3 mb-2';
+                                appointmentDiv.innerHTML = `
+                                    <div class="text-sm font-medium text-gray-800 mb-2">
+                                        ${new Date(appointment.appointment_date).toLocaleDateString()} at ${new Date('1970-01-01T' + appointment.appointment_time).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button onclick="rescheduleAppointment(${appointment.appointment_id})" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-2 py-1 rounded">
+                                            <i class="fas fa-calendar-alt mr-1"></i>Reschedule
+                                        </button>
+                                        <button onclick="cancelAppointment(${appointment.appointment_id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded">
+                                            <i class="fas fa-times mr-1"></i>Cancel
+                                        </button>
+                                        <button onclick="completeAppointment(${appointment.appointment_id})" class="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 rounded">
+                                            <i class="fas fa-check mr-1"></i>Complete
+                                        </button>
+                                        <button onclick="sendReminder(${appointment.appointment_id})" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                                            <i class="fas fa-bell mr-1"></i>Remind
+                                        </button>
+                                    </div>
+                                `;
+                                appointmentActions.appendChild(appointmentDiv);
+                            }
+                        });
+                        
+                        if (appointmentActions.innerHTML === '') {
+                            appointmentActions.innerHTML = '<p class="text-gray-500 text-sm">No active appointments</p>';
+                        }
+                    } else {
+                        appointmentActions.innerHTML = '<p class="text-gray-500 text-sm">No appointments found</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading appointments:', error);
+                    document.getElementById('appointment-actions').innerHTML = '<p class="text-red-500 text-sm">Error loading appointments</p>';
+                });
+        }
+
+        function rescheduleAppointment(appointmentId) {
+            Swal.fire({
+                title: 'Reschedule Appointment',
+                html: `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">New Date</label>
+                            <input type="date" id="reschedule-date" class="w-full px-3 py-2 border border-gray-300 rounded-md" min="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">New Time</label>
+                            <input type="time" id="reschedule-time" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Reschedule',
+                confirmButtonColor: '#f59e0b',
+                preConfirm: () => {
+                    const date = document.getElementById('reschedule-date').value;
+                    const time = document.getElementById('reschedule-time').value;
+                    
+                    if (!date || !time) {
+                        Swal.showValidationMessage('Please select both date and time');
+                        return false;
+                    }
+                    
+                    return { date, time };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performAppointmentAction('reschedule', appointmentId, {
+                        appointment_date: result.value.date,
+                        appointment_time: result.value.time
+                    });
+                }
+            });
+        }
+
+        function cancelAppointment(appointmentId) {
+            Swal.fire({
+                title: 'Cancel Appointment',
+                text: 'Are you sure you want to cancel this appointment? The patient will be notified via email.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Cancel',
+                confirmButtonColor: '#dc2626',
+                cancelButtonText: 'No, Keep'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performAppointmentAction('cancel', appointmentId);
+                }
+            });
+        }
+
+        function completeAppointment(appointmentId) {
+            Swal.fire({
+                title: 'Mark as Completed',
+                text: 'Mark this appointment as completed? The patient will be notified via email.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Complete',
+                confirmButtonColor: '#059669',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performAppointmentAction('complete', appointmentId);
+                }
+            });
+        }
+
+        function sendReminder(appointmentId) {
+            Swal.fire({
+                title: 'Send Reminder',
+                text: 'Send a reminder to the patient about their upcoming appointment?',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Send Reminder',
+                confirmButtonColor: '#3b82f6',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performAppointmentAction('send_reminder', appointmentId);
+                }
+            });
+        }
+
+        function performAppointmentAction(action, appointmentId, extraData = {}) {
+            const formData = new FormData();
+            formData.append('action', action);
+            formData.append('appointment_id', appointmentId);
+            
+            // Add extra data for reschedule
+            Object.keys(extraData).forEach(key => {
+                formData.append(key, extraData[key]);
+            });
+
+            fetch('../auth/manage_appointment.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#059669'
+                    });
+                    
+                    // Reload appointment actions
+                    loadAppointmentActions();
+                    
+                    // Note: Email and internal message notifications are automatically handled by manage_appointment.php
+                    // - Registered users: Get both email + internal message
+                    // - Non-registered users: Get email only
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'An error occurred',
+                        icon: 'error',
+                        confirmButtonColor: '#dc2626'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Network error occurred',
+                    icon: 'error',
+                    confirmButtonColor: '#dc2626'
+                });
+            });
+        }
+
+
+        // Load appointment actions when a user is selected
+        if (activeUserId) {
+            loadAppointmentActions();
+        }
     </script>
 </body>
 
