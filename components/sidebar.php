@@ -86,6 +86,10 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
                 </span>
             <?php endif; ?>
         </a>
+        <a href="skin_analysis.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'skin_analysis.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+            <i class="fas fa-microscope w-6 text-center mr-4"></i>
+            <span class="sidebar-text">Skin Analysis</span>
+        </a>
         <a href="schedules.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'schedules.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
             <i class="fas fa-calendar-times w-6 text-center mr-4"></i>
             <span class="sidebar-text">Schedules</span>

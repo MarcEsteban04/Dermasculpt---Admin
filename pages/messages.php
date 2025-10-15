@@ -110,6 +110,7 @@ if ($activeUserId) {
     <style>
         :root {
             --sidebar-width: 256px;
+            --sidebar-width-collapsed: 80px;
         }
 
         body {
@@ -136,9 +137,30 @@ if ($activeUserId) {
             background: #555;
         }
 
+        #sidebar {
+            width: var(--sidebar-width);
+            transition: width 0.3s ease-in-out;
+        }
+
+        #sidebar.collapsed {
+            width: var(--sidebar-width-collapsed);
+        }
+
+        #sidebar.collapsed .sidebar-text,
+        #sidebar.collapsed .sidebar-logo-text,
+        #sidebar.collapsed .profile-info {
+            display: none;
+        }
+
         .main-content {
+            transition: margin-left 0.3s ease-in-out;
             margin-left: var(--sidebar-width);
             width: calc(100% - var(--sidebar-width));
+        }
+
+        #sidebar.collapsed + .main-content {
+            margin-left: var(--sidebar-width-collapsed);
+            width: calc(100% - var(--sidebar-width-collapsed));
         }
 
         .chat-grid {
@@ -244,7 +266,7 @@ if ($activeUserId) {
 
 <body class="bg-gradient-to-br from-blue-50 to-cyan-100 text-gray-800">
     <?php include '../components/sidebar.php'; ?>
-    <div class="main-content flex flex-col h-screen ml-0 lg:ml-[256px] transition-all duration-300">
+    <div class="main-content flex flex-col h-screen">
         <header class="bg-white shadow-sm flex items-center justify-between p-4 h-16 flex-shrink-0 z-30">
             <div>
                 <button id="sidebar-toggle" class="text-gray-600 hover:text-gray-800 lg:hidden"><i class="fas fa-bars fa-xl"></i></button>
