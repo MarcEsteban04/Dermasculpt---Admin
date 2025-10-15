@@ -97,7 +97,7 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
                 </span>
             <?php endif; ?>
         </a>
-        <a href="inquiries.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'inquiries.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+        <a href="inquiries.php" onclick="showInquiriesLoadingOnClick()" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'inquiries.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
             <i class="fas fa-envelope w-6 text-center mr-4"></i>
             <span class="sidebar-text">Inquiries</span>
             <?php if ($unreadInquiryCount > 0): ?>
@@ -195,5 +195,50 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
             window.location.href = pendingLogoutHref;
         }
     });
+
+    // Global function to show loading overlay when navigating to inquiries
+    window.showInquiriesLoadingOnClick = function() {
+        // Create a loading overlay if it doesn't exist
+        if (!document.getElementById('tempLoadingOverlay')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'tempLoadingOverlay';
+            overlay.className = 'loading-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(255, 255, 255, 0.95);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                backdrop-filter: blur(5px);
+            `;
+            
+            overlay.innerHTML = `
+                <div style="width: 50px; height: 50px; border: 4px solid #e3f2fd; border-top: 4px solid #2196f3; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                <div style="font-size: 18px; color: #333; font-weight: 500; margin-bottom: 10px;">Loading Patient Inquiries</div>
+                <div style="font-size: 14px; color: #666; text-align: center; max-width: 300px;">
+                    Navigating to inquiries page...<br>
+                    <small>Please wait</small>
+                </div>
+            `;
+            
+            // Add spin animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(overlay);
+        }
+    };
 })();
 </script>

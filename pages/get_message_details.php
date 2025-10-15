@@ -29,6 +29,97 @@ if (!$message) {
     exit;
 }
 
+// Get current dermatologist information
+$dermatologistId = $_SESSION['dermatologist_id'];
+$dermStmt = $conn->prepare("SELECT * FROM dermatologists WHERE dermatologist_id = ?");
+$dermStmt->bind_param("i", $dermatologistId);
+$dermStmt->execute();
+$dermResult = $dermStmt->get_result();
+$dermatologist = $dermResult->fetch_assoc();
+$dermStmt->close();
+
+// Ensure dermatologist data exists
+if (!$dermatologist) {
+    $dermatologist = [
+        'email' => 'doctor@dermasculpt.com',
+        'first_name' => 'Doctor',
+        'last_name' => 'DermaSculpt'
+    ];
+}
+
+// Get dermatologist replies from database
+$repliesStmt = $conn->prepare("
+    SELECT ir.*, d.first_name, d.last_name 
+    FROM inquiry_replies ir 
+    LEFT JOIN dermatologists d ON ir.dermatologist_id = d.dermatologist_id 
+    WHERE ir.original_message_id = ? 
+    ORDER BY ir.created_at ASC
+");
+$repliesStmt->bind_param("i", $messageId);
+$repliesStmt->execute();
+$repliesResult = $repliesStmt->get_result();
+$dermatologistReplies = $repliesResult->fetch_all(MYSQLI_ASSOC);
+$repliesStmt->close();
+
+// Get patient email replies using IMAP (much simpler!)
+$gmailReplies = [];
+$gmailError = null;
+
+// Only try Gmail fetching if not manually disabled
+if (!file_exists('../config/gmail_disabled.tmp')) {
+    try {
+        require_once '../classes/SimpleGmailFetcher.php';
+        
+        // Set a timeout for IMAP calls
+        set_time_limit(15); // 15 second timeout
+        
+        $gmailFetcher = new SimpleGmailFetcher();
+        
+        // Fetch replies from patient email after the original inquiry date
+        $gmailReplies = $gmailFetcher->getEmailReplies(
+            $message['email'], 
+            $message['created_at']
+        );
+        
+        // Reset timeout
+        set_time_limit(30);
+        
+    } catch (Exception $e) {
+        error_log("Gmail IMAP error: " . $e->getMessage());
+        $gmailError = $e->getMessage();
+        // Continue without Gmail replies if there's an error
+        set_time_limit(30); // Reset timeout
+    }
+} else {
+    $gmailError = "Gmail integration temporarily disabled.";
+}
+
+// Combine and sort all replies by timestamp
+$allReplies = [];
+
+// Add dermatologist replies
+foreach ($dermatologistReplies as $reply) {
+    $allReplies[] = [
+        'type' => 'dermatologist',
+        'timestamp' => strtotime($reply['created_at']),
+        'data' => $reply
+    ];
+}
+
+// Add Gmail patient replies
+foreach ($gmailReplies as $reply) {
+    $allReplies[] = [
+        'type' => 'patient',
+        'timestamp' => $reply['timestamp'],
+        'data' => $reply
+    ];
+}
+
+// Sort by timestamp
+usort($allReplies, function($a, $b) {
+    return $a['timestamp'] - $b['timestamp'];
+});
+
 // Mark as read if it's unread
 if ($message['status'] === 'unread') {
     $updateStmt = $conn->prepare("UPDATE contact_messages SET status = 'read', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
@@ -113,15 +204,125 @@ ob_start();
         </div>
     </div>
 
-    <!-- Message Content -->
+    <!-- Conversation Thread -->
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <i class="fas fa-comment-alt mr-2 text-cyan-600"></i>
-            Message Content
+        <h4 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-comments mr-2 text-cyan-600"></i>
+            Conversation Thread
+            <span class="ml-2 text-sm text-gray-500">(<?php echo count($allReplies) + 1; ?> messages)</span>
+            
+            <!-- Gmail Status Indicator -->
+            <?php if ($gmailError): ?>
+                <span class="ml-4 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full" title="<?php echo htmlspecialchars($gmailError); ?>">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Gmail Not Connected
+                </span>
+            <?php else: ?>
+                <span class="ml-4 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                    <i class="fas fa-check mr-1"></i>
+                    Gmail Connected
+                </span>
+            <?php endif; ?>
         </h4>
-        <div class="prose max-w-none">
-            <p class="text-gray-700 leading-relaxed whitespace-pre-wrap"><?php echo htmlspecialchars($message['message']); ?></p>
+        
+        <!-- Original Message -->
+        <div class="conversation-message mb-4 p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                        <?php echo strtoupper(substr($message['name'], 0, 1)); ?>
+                    </div>
+                    <div>
+                        <h5 class="font-semibold text-gray-900"><?php echo htmlspecialchars($message['name']); ?></h5>
+                        <p class="text-sm text-gray-600"><?php echo htmlspecialchars($message['email']); ?></p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 mb-1">
+                        Original Inquiry
+                    </span>
+                    <p class="text-xs text-gray-500">
+                        <?php echo formatDateTime($message['created_at']); ?>
+                    </p>
+                </div>
+            </div>
+            <div class="prose max-w-none">
+                <p class="text-gray-700 leading-relaxed whitespace-pre-wrap"><?php echo htmlspecialchars($message['message']); ?></p>
+            </div>
         </div>
+        
+        <!-- Replies -->
+        <?php if (!empty($allReplies)): ?>
+            <?php foreach ($allReplies as $replyItem): ?>
+                <?php 
+                $reply = $replyItem['data'];
+                $replyType = $replyItem['type'];
+                ?>
+                <div class="conversation-message mb-4 p-4 border-l-4 <?php echo $replyType === 'dermatologist' ? 'border-green-500 bg-green-50' : 'border-orange-500 bg-orange-50'; ?> rounded-r-lg">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 <?php echo $replyType === 'dermatologist' ? 'bg-green-500' : 'bg-orange-500'; ?> rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                                <?php 
+                                if ($replyType === 'dermatologist') {
+                                    echo 'Dr';
+                                } else {
+                                    echo strtoupper(substr($reply['from_name'], 0, 1));
+                                }
+                                ?>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold text-gray-900">
+                                    <?php 
+                                    if ($replyType === 'dermatologist') {
+                                        echo 'Dr. ' . htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']);
+                                    } else {
+                                        echo htmlspecialchars($reply['from_name']);
+                                    }
+                                    ?>
+                                </h5>
+                                <p class="text-sm text-gray-600">
+                                    <?php 
+                                    if ($replyType === 'dermatologist') {
+                                        echo htmlspecialchars($dermatologist['email'] ?? 'doctor@dermasculpt.com');
+                                    } else {
+                                        echo htmlspecialchars($reply['from_email']);
+                                    }
+                                    ?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-block px-2 py-1 text-xs rounded-full <?php echo $replyType === 'dermatologist' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'; ?> mb-1">
+                                <?php echo $replyType === 'dermatologist' ? 'Doctor Reply' : 'Patient Reply'; ?>
+                                <?php if ($replyType === 'patient'): ?>
+                                    <i class="fas fa-envelope ml-1" title="From Gmail"></i>
+                                <?php endif; ?>
+                            </span>
+                            <p class="text-xs text-gray-500">
+                                <?php 
+                                if ($replyType === 'dermatologist') {
+                                    echo formatDateTime($reply['created_at']);
+                                } else {
+                                    echo formatDateTime($reply['date']);
+                                }
+                                ?>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="prose max-w-none">
+                        <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            <?php 
+                            if ($replyType === 'dermatologist') {
+                                echo htmlspecialchars($reply['reply_message']);
+                            } else {
+                                echo htmlspecialchars($reply['body']);
+                            }
+                            ?>
+                        </p>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 
     <!-- Reply Section -->

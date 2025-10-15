@@ -46,8 +46,15 @@ if (!empty($search_query)) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
-// Get all contact messages
-$sql = "SELECT * FROM contact_messages $where_clause ORDER BY created_at DESC";
+// Get all contact messages with dermatologist reply information
+$sql = "SELECT cm.*, 
+        COUNT(ir.reply_id) as dermatologist_reply_count,
+        MAX(ir.created_at) as last_dermatologist_reply_date
+        FROM contact_messages cm 
+        LEFT JOIN inquiry_replies ir ON cm.id = ir.original_message_id 
+        $where_clause
+        GROUP BY cm.id 
+        ORDER BY COALESCE(MAX(ir.created_at), cm.created_at) DESC";
 $stmt = $conn->prepare($sql);
 
 if (!empty($params)) {
@@ -57,6 +64,77 @@ if (!empty($params)) {
 $stmt->execute();
 $messages = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+// Function to check for Gmail replies using simple IMAP
+function checkGmailReplies($email, $createdAt) {
+    static $gmailFetcher = null;
+    static $gmailDisabled = false;
+    
+    // Skip Gmail checking if it's been disabled due to errors or manually disabled
+    if ($gmailDisabled || file_exists('../config/gmail_disabled.tmp')) {
+        return ['count' => 0, 'hasNew' => false, 'lastDate' => null];
+    }
+    
+    if ($gmailFetcher === null) {
+        try {
+            require_once '../classes/SimpleGmailFetcher.php';
+            $gmailFetcher = new SimpleGmailFetcher();
+        } catch (Exception $e) {
+            error_log("Gmail IMAP error: " . $e->getMessage());
+            $gmailDisabled = true; // Disable for this request to avoid repeated failures
+            return ['count' => 0, 'hasNew' => false, 'lastDate' => null];
+        }
+    }
+    
+    try {
+        // Set a short timeout for IMAP calls in list view
+        set_time_limit(8);
+        
+        $replies = $gmailFetcher->getEmailReplies($email, $createdAt);
+        $hasNewReplies = false;
+        $lastReplyDate = null;
+        
+        foreach ($replies as $reply) {
+            if ($lastReplyDate === null || $reply['timestamp'] > strtotime($lastReplyDate)) {
+                $lastReplyDate = $reply['date'];
+            }
+            // Consider replies from the last 24 hours as "new"
+            if ($reply['timestamp'] > (time() - 86400)) {
+                $hasNewReplies = true;
+            }
+        }
+        
+        set_time_limit(30); // Reset timeout
+        
+        return [
+            'count' => count($replies),
+            'hasNew' => $hasNewReplies,
+            'lastDate' => $lastReplyDate
+        ];
+    } catch (Exception $e) {
+        error_log("Error checking Gmail replies for $email: " . $e->getMessage());
+        set_time_limit(30); // Reset timeout
+        return ['count' => 0, 'hasNew' => false, 'lastDate' => null];
+    }
+}
+
+// Add Gmail reply information to each message
+foreach ($messages as &$message) {
+    $gmailInfo = checkGmailReplies($message['email'], $message['created_at']);
+    $message['gmail_reply_count'] = $gmailInfo['count'];
+    $message['has_new_gmail_replies'] = $gmailInfo['hasNew'];
+    $message['last_gmail_reply_date'] = $gmailInfo['lastDate'];
+    $message['total_reply_count'] = $message['dermatologist_reply_count'] + $message['gmail_reply_count'];
+    
+    // Determine the most recent activity date
+    $dates = array_filter([
+        $message['created_at'],
+        $message['last_dermatologist_reply_date'],
+        $message['last_gmail_reply_date']
+    ]);
+    $message['last_activity_date'] = !empty($dates) ? max($dates) : $message['created_at'];
+}
+unset($message); // Break the reference
 
 // Count messages by status
 $counts = [
@@ -214,6 +292,22 @@ function timeAgo($datetime) {
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
         }
 
+        .message-item.new-patient-reply {
+            border-left: 5px solid #dc2626;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.2);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 6px 20px rgba(220, 38, 38, 0.2);
+            }
+            50% {
+                box-shadow: 0 8px 25px rgba(220, 38, 38, 0.3);
+            }
+        }
+
         .modal {
             transition: visibility 0s linear 0.3s, opacity 0.3s ease-in-out;
             visibility: hidden;
@@ -224,6 +318,60 @@ function timeAgo($datetime) {
             transition: visibility 0s linear 0s;
             visibility: visible;
             opacity: 1;
+        }
+
+        /* Loading overlay styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e3f2fd;
+            border-top: 4px solid #2196f3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            font-size: 18px;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            max-width: 300px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
 
         .modal-content {
@@ -340,6 +488,37 @@ function timeAgo($datetime) {
                 </div>
             </div>
         </header>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Loading Patient Inquiries</div>
+            <div class="loading-subtext" id="loadingSubtext">
+                Fetching inquiries and checking for email replies...<br>
+                <small>This may take a few moments</small>
+            </div>
+            
+            <!-- Progress Steps -->
+            <div class="mt-6 w-full max-w-md">
+                <div class="flex justify-between text-xs text-gray-500 mb-2">
+                    <span id="step1" class="flex items-center">
+                        <i class="fas fa-circle-notch fa-spin mr-1"></i>
+                        Loading inquiries
+                    </span>
+                    <span id="step2" class="flex items-center opacity-50">
+                        <i class="fas fa-circle mr-1"></i>
+                        Checking Gmail
+                    </span>
+                    <span id="step3" class="flex items-center opacity-50">
+                        <i class="fas fa-circle mr-1"></i>
+                        Ready
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 33%"></div>
+                </div>
+            </div>
+        </div>
 
         <main class="flex-1 p-4 sm:p-6 overflow-hidden" id="mainContent">
             <div class="mb-6 flex justify-between items-center">
@@ -547,7 +726,14 @@ function timeAgo($datetime) {
                             </div>
                         <?php else: ?>
                             <?php foreach ($messages as $message): ?>
-                                <div class="message-item <?php echo $message['status']; ?> p-4 border-b border-gray-100" 
+                                <?php 
+                                $hasNewPatientReply = $message['has_new_gmail_replies'];
+                                $messageClass = $message['status'];
+                                if ($hasNewPatientReply) {
+                                    $messageClass = 'new-patient-reply';
+                                }
+                                ?>
+                                <div class="message-item <?php echo $messageClass; ?> p-4 border-b border-gray-100" 
                                      onclick="openMessageModal(<?php echo $message['id']; ?>)">
                                     <div class="flex items-start justify-between">
                                         <div class="flex-1 min-w-0">
@@ -559,6 +745,24 @@ function timeAgo($datetime) {
                                                 <span class="ml-2 px-2 py-1 text-xs rounded-full <?php echo getStatusBadgeClass($message['status']); ?>">
                                                     <?php echo ucfirst($message['status']); ?>
                                                 </span>
+                                                
+                                                <!-- Conversation indicators -->
+                                                <?php if ($message['total_reply_count'] > 0): ?>
+                                                    <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                                                        <i class="fas fa-comments mr-1"></i>
+                                                        <?php echo $message['total_reply_count']; ?> replies
+                                                        <?php if ($message['gmail_reply_count'] > 0): ?>
+                                                            <i class="fas fa-envelope ml-1" title="Includes Gmail replies"></i>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($hasNewPatientReply): ?>
+                                                    <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full animate-pulse">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                                        New Patient Reply
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                             <p class="text-sm text-gray-600 mb-1">
                                                 <?php echo htmlspecialchars($message['email']); ?>
@@ -566,18 +770,29 @@ function timeAgo($datetime) {
                                             <p class="text-sm text-gray-800 message-preview">
                                                 <?php echo htmlspecialchars($message['message']); ?>
                                             </p>
-                                            <?php if ($message['status'] === 'unread'): ?>
-                                                <div class="mt-2">
+                                            
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                <?php if ($message['status'] === 'unread'): ?>
                                                     <span class="inline-flex items-center px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
                                                         <i class="fas fa-robot mr-1"></i>
                                                         AI Ready
                                                     </span>
-                                                </div>
-                                            <?php endif; ?>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($message['total_reply_count'] > 0 && $message['last_activity_date']): ?>
+                                                    <span class="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                                        <i class="fas fa-clock mr-1"></i>
+                                                        Last activity: <?php echo timeAgo($message['last_activity_date']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                         <div class="ml-4 text-right flex-shrink-0">
                                             <p class="text-xs text-gray-500">
-                                                <?php echo timeAgo($message['created_at']); ?>
+                                                <?php 
+                                                $displayDate = $message['last_activity_date'] ? $message['last_activity_date'] : $message['created_at'];
+                                                echo timeAgo($displayDate); 
+                                                ?>
                                             </p>
                                             <?php if ($message['phone_number']): ?>
                                                 <p class="text-xs text-gray-400 mt-1">
@@ -655,6 +870,8 @@ function timeAgo($datetime) {
         }
 
         function refreshInquiries() {
+            // Show loading overlay before refresh
+            showInquiriesLoading();
             window.location.reload();
         }
 
@@ -1255,6 +1472,83 @@ function timeAgo($datetime) {
                 });
             });
         });
+
+        // Loading overlay control with progress steps
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove temporary loading overlay from sidebar navigation if it exists
+            const tempOverlay = document.getElementById('tempLoadingOverlay');
+            if (tempOverlay) {
+                tempOverlay.remove();
+            }
+            
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            
+            // Step 1: Loading inquiries (already active)
+            
+            // Step 2: Checking Gmail (simulate after DOM is loaded)
+            setTimeout(function() {
+                if (step1 && step2 && progressBar) {
+                    // Complete step 1
+                    step1.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>Loading inquiries';
+                    step1.classList.remove('opacity-50');
+                    
+                    // Start step 2
+                    step2.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>Checking Gmail';
+                    step2.classList.remove('opacity-50');
+                    progressBar.style.width = '66%';
+                }
+            }, 500);
+            
+            // Step 3: Ready (after page fully loads)
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    if (step2 && step3 && progressBar) {
+                        // Complete step 2
+                        step2.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>Checking Gmail';
+                        
+                        // Start step 3
+                        step3.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>Ready';
+                        step3.classList.remove('opacity-50');
+                        progressBar.style.width = '100%';
+                        
+                        // Hide loading overlay after a brief moment
+                        setTimeout(function() {
+                            if (loadingOverlay) {
+                                loadingOverlay.classList.add('fade-out');
+                                
+                                setTimeout(function() {
+                                    loadingOverlay.style.display = 'none';
+                                }, 500);
+                            }
+                        }, 800);
+                    }
+                }, 1200); // Wait for Gmail checking to complete
+            });
+        });
+
+        // Show loading overlay when navigating to inquiries page
+        window.showInquiriesLoading = function() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.classList.remove('fade-out');
+            }
+        };
+
+        // Hide loading overlay manually (can be called when Gmail fetching is complete)
+        window.hideInquiriesLoading = function() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('fade-out');
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                }, 500);
+            }
+        };
     </script>
 </body>
 </html>

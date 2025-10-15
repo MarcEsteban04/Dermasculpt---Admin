@@ -138,6 +138,12 @@ try {
 
     $mail->send();
     
+    // Save the reply to database
+    $insertReplyStmt = $conn->prepare("INSERT INTO inquiry_replies (original_message_id, dermatologist_id, reply_message) VALUES (?, ?, ?)");
+    $insertReplyStmt->bind_param("iis", $messageId, $dermatologistId, $replyMessage);
+    $insertReplyStmt->execute();
+    $insertReplyStmt->close();
+    
     // Update message status to 'replied'
     $updateStmt = $conn->prepare("UPDATE contact_messages SET status = 'replied', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
     $updateStmt->bind_param("i", $messageId);
