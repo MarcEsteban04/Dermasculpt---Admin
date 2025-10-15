@@ -94,12 +94,19 @@ if (!file_exists('../config/gmail_disabled.tmp')) {
     $gmailError = "Gmail integration temporarily disabled.";
 }
 
-// Combine and sort all replies by timestamp
-$allReplies = [];
+// Combine and sort all messages by timestamp (including original message)
+$allMessages = [];
+
+// Add original patient message
+$allMessages[] = [
+    'type' => 'original_patient',
+    'timestamp' => strtotime($message['created_at']),
+    'data' => $message
+];
 
 // Add dermatologist replies
 foreach ($dermatologistReplies as $reply) {
-    $allReplies[] = [
+    $allMessages[] = [
         'type' => 'dermatologist',
         'timestamp' => strtotime($reply['created_at']),
         'data' => $reply
@@ -108,16 +115,21 @@ foreach ($dermatologistReplies as $reply) {
 
 // Add Gmail patient replies
 foreach ($gmailReplies as $reply) {
-    $allReplies[] = [
+    $allMessages[] = [
         'type' => 'patient',
         'timestamp' => $reply['timestamp'],
         'data' => $reply
     ];
 }
 
-// Sort by timestamp
-usort($allReplies, function($a, $b) {
+// Sort by timestamp (oldest first for chronological order)
+usort($allMessages, function($a, $b) {
     return $a['timestamp'] - $b['timestamp'];
+});
+
+// Keep the old $allReplies for backward compatibility (excluding original message)
+$allReplies = array_filter($allMessages, function($item) {
+    return $item['type'] !== 'original_patient';
 });
 
 // Mark as read if it's unread
@@ -225,99 +237,107 @@ ob_start();
             <?php endif; ?>
         </h4>
         
-        <!-- Original Message -->
-        <div class="conversation-message mb-4 p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
-            <div class="flex items-start justify-between mb-3">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
-                        <?php echo strtoupper(substr($message['name'], 0, 1)); ?>
-                    </div>
-                    <div>
-                        <h5 class="font-semibold text-gray-900"><?php echo htmlspecialchars($message['name']); ?></h5>
-                        <p class="text-sm text-gray-600"><?php echo htmlspecialchars($message['email']); ?></p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 mb-1">
-                        Original Inquiry
-                    </span>
-                    <p class="text-xs text-gray-500">
-                        <?php echo formatDateTime($message['created_at']); ?>
-                    </p>
-                </div>
-            </div>
-            <div class="prose max-w-none">
-                <p class="text-gray-700 leading-relaxed whitespace-pre-wrap"><?php echo htmlspecialchars($message['message']); ?></p>
-            </div>
-        </div>
-        
-        <!-- Replies -->
-        <?php if (!empty($allReplies)): ?>
-            <?php foreach ($allReplies as $replyItem): ?>
+        <!-- All Messages in Chronological Order -->
+        <?php if (!empty($allMessages)): ?>
+            <?php foreach ($allMessages as $messageItem): ?>
                 <?php 
-                $reply = $replyItem['data'];
-                $replyType = $replyItem['type'];
+                $msgData = $messageItem['data'];
+                $msgType = $messageItem['type'];
                 ?>
-                <div class="conversation-message mb-4 p-4 border-l-4 <?php echo $replyType === 'dermatologist' ? 'border-green-500 bg-green-50' : 'border-orange-500 bg-orange-50'; ?> rounded-r-lg">
+                <div class="conversation-message mb-4 p-4 border-l-4 <?php echo $msgType === 'dermatologist' ? 'border-green-500 bg-green-50' : ($msgType === 'original_patient' ? 'border-blue-500 bg-blue-50' : 'border-orange-500 bg-orange-50'); ?> rounded-r-lg">
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center">
-                            <div class="w-10 h-10 <?php echo $replyType === 'dermatologist' ? 'bg-green-500' : 'bg-orange-500'; ?> rounded-full flex items-center justify-center text-white font-semibold mr-3">
-                                <?php 
-                                if ($replyType === 'dermatologist') {
-                                    echo 'Dr';
+                            <div class="w-10 h-10 <?php 
+                                if ($msgType === 'dermatologist') {
+                                    echo 'bg-green-500';
+                                } else if ($msgType === 'original_patient') {
+                                    echo 'bg-blue-500';
                                 } else {
-                                    echo strtoupper(substr($reply['from_name'], 0, 1));
+                                    echo 'bg-orange-500';
+                                }
+                            ?> rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                                <?php 
+                                if ($msgType === 'dermatologist') {
+                                    echo 'Dr';
+                                } else if ($msgType === 'original_patient') {
+                                    echo strtoupper(substr($msgData['name'], 0, 1));
+                                } else {
+                                    echo strtoupper(substr($msgData['from_name'], 0, 1));
                                 }
                                 ?>
                             </div>
                             <div>
                                 <h5 class="font-semibold text-gray-900">
                                     <?php 
-                                    if ($replyType === 'dermatologist') {
-                                        echo 'Dr. ' . htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']);
+                                    if ($msgType === 'dermatologist') {
+                                        echo 'Dr. ' . htmlspecialchars($msgData['first_name'] . ' ' . $msgData['last_name']);
+                                    } else if ($msgType === 'original_patient') {
+                                        echo htmlspecialchars($msgData['name']);
                                     } else {
-                                        echo htmlspecialchars($reply['from_name']);
+                                        echo htmlspecialchars($msgData['from_name']);
                                     }
                                     ?>
                                 </h5>
                                 <p class="text-sm text-gray-600">
                                     <?php 
-                                    if ($replyType === 'dermatologist') {
+                                    if ($msgType === 'dermatologist') {
                                         echo htmlspecialchars($dermatologist['email']);
+                                    } else if ($msgType === 'original_patient') {
+                                        echo htmlspecialchars($msgData['email']);
                                     } else {
-                                        echo htmlspecialchars($reply['from_email']);
+                                        echo htmlspecialchars($msgData['from_email']);
                                     }
                                     ?>
                                 </p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <span class="inline-block px-2 py-1 text-xs rounded-full <?php echo $replyType === 'dermatologist' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'; ?> mb-1">
-                                <?php echo $replyType === 'dermatologist' ? 'Doctor Reply' : 'Patient Reply'; ?>
-                                <?php if ($replyType === 'patient'): ?>
+                            <span class="inline-block px-2 py-1 text-xs rounded-full <?php 
+                                if ($msgType === 'dermatologist') {
+                                    echo 'bg-green-100 text-green-800';
+                                } else if ($msgType === 'original_patient') {
+                                    echo 'bg-blue-100 text-blue-800';
+                                } else {
+                                    echo 'bg-orange-100 text-orange-800';
+                                }
+                            ?> mb-1">
+                                <?php 
+                                if ($msgType === 'dermatologist') {
+                                    echo 'Doctor Reply';
+                                } else if ($msgType === 'original_patient') {
+                                    echo 'Original Inquiry';
+                                } else {
+                                    echo 'Patient Reply';
+                                }
+                                ?>
+                                <?php if ($msgType === 'patient'): ?>
                                     <i class="fas fa-envelope ml-1" title="From Gmail"></i>
                                 <?php endif; ?>
                             </span>
                             <p class="text-xs text-gray-500">
                                 <?php 
-                                if ($replyType === 'dermatologist') {
-                                    echo formatDateTime($reply['created_at']);
+                                if ($msgType === 'dermatologist') {
+                                    echo formatDateTime($msgData['created_at']);
+                                } else if ($msgType === 'original_patient') {
+                                    echo formatDateTime($msgData['created_at']);
                                 } else {
-                                    echo formatDateTime($reply['date']);
+                                    echo formatDateTime($msgData['date']);
                                 }
                                 ?>
                             </p>
                         </div>
                     </div>
-                    <div class="prose max-w-none">
+                    <div class="pl-13">
                         <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                            <?php 
-                            if ($replyType === 'dermatologist') {
-                                echo htmlspecialchars($reply['reply_message']);
-                            } else {
-                                echo htmlspecialchars($reply['body']);
-                            }
-                            ?>
+                        <?php 
+                        if ($msgType === 'dermatologist') {
+                            echo htmlspecialchars($msgData['reply_message']);
+                        } else if ($msgType === 'original_patient') {
+                            echo htmlspecialchars($msgData['message']);
+                        } else {
+                            echo htmlspecialchars($msgData['body']);
+                        }
+                        ?>
                         </p>
                     </div>
                 </div>
@@ -446,10 +466,61 @@ ob_start();
             </div>
         </div>
         
+        <!-- Latest Patient Message Context -->
+        <?php
+        // Find the latest patient message (either original or from Gmail)
+        $latestPatientMessage = null;
+        $latestTimestamp = strtotime($message['created_at']);
+        $latestPatientMessage = [
+            'content' => $message['message'],
+            'date' => $message['created_at'],
+            'source' => 'original'
+        ];
+        
+        // Check Gmail replies for more recent patient messages
+        foreach ($gmailReplies as $reply) {
+            if ($reply['timestamp'] > $latestTimestamp) {
+                $latestTimestamp = $reply['timestamp'];
+                $latestPatientMessage = [
+                    'content' => $reply['body'],
+                    'date' => $reply['date'],
+                    'source' => 'gmail'
+                ];
+            }
+        }
+        ?>
+        
+        <?php if ($latestPatientMessage): ?>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+                <i class="fas fa-quote-left text-blue-600 mt-1 mr-3"></i>
+                <div class="flex-1">
+                    <p class="font-medium text-blue-800 mb-2">
+                        <?php if ($latestPatientMessage['source'] === 'gmail'): ?>
+                            Latest Patient Reply (via Email):
+                        <?php else: ?>
+                            Patient's Original Message:
+                        <?php endif; ?>
+                        <span class="font-normal text-sm"><?php echo formatDateTime($latestPatientMessage['date']); ?></span>
+                    </p>
+                    <div class="text-sm text-blue-700 bg-white p-3 rounded border max-h-32 overflow-y-auto">
+                        <?php echo htmlspecialchars(substr($latestPatientMessage['content'], 0, 300)); ?>
+                        <?php if (strlen($latestPatientMessage['content']) > 300): ?>
+                            <span class="text-blue-500">... (truncated)</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="space-y-4">
             <div>
                 <label for="replyMessage" class="block text-sm font-medium text-gray-700 mb-2">
                     Your Reply Message
+                    <?php if ($latestPatientMessage['source'] === 'gmail'): ?>
+                        <span class="text-sm text-blue-600 font-normal">(Replying to latest email)</span>
+                    <?php endif; ?>
                 </label>
                 <textarea 
                     id="replyMessage" 

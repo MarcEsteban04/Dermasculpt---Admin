@@ -137,19 +137,87 @@ class SimpleGmailFetcher {
         // Clean up the body
         $body = trim($body);
         
-        // Remove quoted text (everything after "On ... wrote:")
-        $quotedPatterns = [
-            '/On .* wrote:/s',
-            '/From: .*/s',
-            '/Sent: .*/s',
-            '/-----Original Message-----/s'
+        // Extract only the new reply content (before any quoted text)
+        
+        // Enhanced quote indicators to catch more patterns
+        $quoteIndicators = [
+            '> DermaSculpt',
+            '> Dermatology',
+            '> Response to Your',
+            '> Dear ',
+            '> Thank you for contacting',
+            '> Dr. ',
+            'On ' . date('Y') . '-', // Current year date patterns like "On 2025-"
+            'On ' . date('M'), // Month patterns like "On Oct"
+            'On Mon,', 'On Tue,', 'On Wed,', 'On Thu,', 'On Fri,', 'On Sat,', 'On Sun,', // Day patterns
+            'On Monday,', 'On Tuesday,', 'On Wednesday,', 'On Thursday,', 'On Friday,', 'On Saturday,', 'On Sunday,',
+            '-----Original Message-----',
+            'From:',
+            'Sent:',
+            'To:',
+            'Subject:',
+            'DermaSculpt - Dr.',
+            'marcdelacruzesteban@gmail.com',
+            '< marcdelacruzesteban@gmail.com>',
+            'wrote:'
         ];
         
-        foreach ($quotedPatterns as $pattern) {
-            $body = preg_replace($pattern, '', $body);
+        // Split into lines
+        $lines = explode("\n", $body);
+        $replyLines = [];
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Skip empty lines at the beginning
+            if (empty($line) && empty($replyLines)) {
+                continue;
+            }
+            
+            // Check if this line indicates start of quoted content
+            $isQuotedContent = false;
+            foreach ($quoteIndicators as $indicator) {
+                if (stripos($line, $indicator) !== false || strpos($line, '>') === 0) {
+                    $isQuotedContent = true;
+                    break;
+                }
+            }
+            
+            // If we hit quoted content, stop collecting
+            if ($isQuotedContent) {
+                break;
+            }
+            
+            // Add this line to the reply
+            if (!empty($line)) {
+                $replyLines[] = $line;
+            }
         }
         
-        return trim($body);
+        // Join the reply lines
+        $cleanBody = implode("\n", $replyLines);
+        
+        // If we didn't get anything, try a different approach - take first few sentences
+        if (empty($cleanBody) || strlen($cleanBody) < 3) {
+            // Fallback: take the first meaningful content before any ">" character
+            $firstPart = explode('>', $body)[0];
+            $cleanBody = trim($firstPart);
+            
+            // Remove common email artifacts from the beginning
+            $cleanBody = preg_replace('/^(Re:|Fwd:|FW:)\s*/i', '', $cleanBody);
+            $cleanBody = trim($cleanBody);
+        }
+        
+        // Final cleanup
+        $cleanBody = preg_replace('/\s+/', ' ', $cleanBody); // Multiple spaces to single
+        $cleanBody = trim($cleanBody);
+        
+        // Limit length to reasonable reply size (avoid huge quoted content)
+        if (strlen($cleanBody) > 500) {
+            $cleanBody = substr($cleanBody, 0, 500) . '...';
+        }
+        
+        return $cleanBody;
     }
     
     /**

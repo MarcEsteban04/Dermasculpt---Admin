@@ -61,7 +61,78 @@ if ($messageId) {
             $messageContext .= "Patient Phone: " . $message['phone_number'] . "\n";
         }
         $messageContext .= "Inquiry Date: " . $message['created_at'] . "\n";
-        $messageContext .= "Patient Message: " . $message['message'] . "\n\n";
+        $messageContext .= "Original Message: " . $message['message'] . "\n\n";
+        
+        // Get conversation history (dermatologist replies + Gmail patient replies)
+        $messageContext .= "CONVERSATION HISTORY:\n";
+        
+        // Get dermatologist replies from database
+        $repliesStmt = $conn->prepare("
+            SELECT ir.reply_message, ir.created_at, d.first_name, d.last_name 
+            FROM inquiry_replies ir 
+            LEFT JOIN dermatologists d ON ir.dermatologist_id = d.dermatologist_id 
+            WHERE ir.original_message_id = ? 
+            ORDER BY ir.created_at ASC
+        ");
+        $repliesStmt->bind_param("i", $messageId);
+        $repliesStmt->execute();
+        $repliesResult = $repliesStmt->get_result();
+        $dermatologistReplies = $repliesResult->fetch_all(MYSQLI_ASSOC);
+        $repliesStmt->close();
+        
+        // Get patient Gmail replies
+        $gmailReplies = [];
+        if (!file_exists('../config/gmail_disabled.tmp')) {
+            try {
+                require_once '../classes/SimpleGmailFetcher.php';
+                $gmailFetcher = new SimpleGmailFetcher();
+                $gmailReplies = $gmailFetcher->getEmailReplies($message['email'], $message['created_at']);
+            } catch (Exception $e) {
+                // Continue without Gmail replies if there's an error
+                error_log("AI Gmail fetch error: " . $e->getMessage());
+            }
+        }
+        
+        // Combine and sort all replies chronologically
+        $allReplies = [];
+        
+        // Add dermatologist replies
+        foreach ($dermatologistReplies as $reply) {
+            $allReplies[] = [
+                'type' => 'dermatologist',
+                'timestamp' => strtotime($reply['created_at']),
+                'content' => $reply['reply_message'],
+                'sender' => 'Dr. ' . $reply['first_name'] . ' ' . $reply['last_name'],
+                'date' => $reply['created_at']
+            ];
+        }
+        
+        // Add Gmail patient replies
+        foreach ($gmailReplies as $reply) {
+            $allReplies[] = [
+                'type' => 'patient',
+                'timestamp' => $reply['timestamp'],
+                'content' => $reply['body'],
+                'sender' => $reply['from_name'],
+                'date' => $reply['date']
+            ];
+        }
+        
+        // Sort by timestamp
+        usort($allReplies, function($a, $b) {
+            return $a['timestamp'] - $b['timestamp'];
+        });
+        
+        // Add conversation history to context
+        if (!empty($allReplies)) {
+            foreach ($allReplies as $index => $reply) {
+                $messageContext .= ($index + 1) . ". " . ucfirst($reply['type']) . " Reply (" . $reply['date'] . "):\n";
+                $messageContext .= "From: " . $reply['sender'] . "\n";
+                $messageContext .= "Message: " . substr($reply['content'], 0, 500) . "\n\n";
+            }
+        } else {
+            $messageContext .= "No previous replies in this conversation.\n\n";
+        }
     }
 } else {
     // For bulk analysis, get recent inquiries data with additional context from database
@@ -100,11 +171,11 @@ if ($messageId) {
 
 // Define different AI prompts based on action
 $prompts = [
-    'suggest_reply' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Based on the patient inquiry below, generate a professional, empathetic, and informative reply. The response should:\n\n1. Address the patient's concerns directly\n2. Provide helpful dermatological guidance (while noting it's not a substitute for in-person consultation)\n3. Suggest next steps if appropriate (scheduling appointment, etc.)\n4. Maintain a warm, professional tone\n5. Keep the response concise but comprehensive\n6. Sign the response with your name and credentials\n\n" . $messageContext . "Generate a professional reply:",
+    'suggest_reply' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Based on the complete conversation history below, generate a professional, empathetic, and informative reply. The response should:\n\n1. Address the patient's most recent message/concerns directly\n2. Reference the conversation history appropriately\n3. Provide helpful dermatological guidance (while noting it's not a substitute for in-person consultation)\n4. Suggest next steps if appropriate (scheduling appointment, etc.)\n5. Maintain a warm, professional tone\n6. Keep the response concise but comprehensive\n7. Sign the response with your name and credentials\n\nIMPORTANT: Focus your reply on the patient's LATEST message in the conversation history.\n\n" . $messageContext . "Generate a professional reply that addresses the patient's most recent message:",
     
-    'suggest_professional' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a formal, clinical response to the patient inquiry below. The response should:\n\n1. Use professional medical terminology appropriately\n2. Provide evidence-based information\n3. Include appropriate disclaimers about remote consultation limitations\n4. Suggest proper medical evaluation if needed\n5. Maintain clinical objectivity\n6. Sign with your name and credentials\n\n" . $messageContext . "Generate a professional clinical response:",
+    'suggest_professional' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a formal, clinical response based on the complete conversation history below. The response should:\n\n1. Use professional medical terminology appropriately\n2. Provide evidence-based information\n3. Include appropriate disclaimers about remote consultation limitations\n4. Suggest proper medical evaluation if needed\n5. Maintain clinical objectivity\n6. Address the patient's most recent message\n7. Sign with your name and credentials\n\n" . $messageContext . "Generate a professional clinical response addressing the patient's latest message:",
     
-    'suggest_empathetic' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a caring dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a warm, empathetic response to the patient inquiry below. The response should:\n\n1. Acknowledge the patient's concerns with empathy\n2. Provide reassuring but accurate information\n3. Use accessible, non-technical language\n4. Show understanding of patient anxiety or concerns\n5. Encourage the patient while being realistic\n6. Sign with your name and practice information\n\n" . $messageContext . "Generate an empathetic, caring response:",
+    'suggest_empathetic' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a caring dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a warm, empathetic response based on the complete conversation history below. The response should:\n\n1. Acknowledge the patient's most recent concerns with empathy\n2. Provide reassuring but accurate information\n3. Use accessible, non-technical language\n4. Show understanding of patient anxiety or concerns\n5. Encourage the patient while being realistic\n6. Reference the conversation history appropriately\n7. Sign with your name and practice information\n\n" . $messageContext . "Generate an empathetic, caring response to the patient's latest message:",
     
     'suggest_appointment' => "You are representing Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a response focused on scheduling and next steps for the patient inquiry below. The response should:\n\n1. Acknowledge their inquiry briefly\n2. Explain the benefits of an in-person consultation with Dr. " . $dermatologist['last_name'] . "\n3. Provide clear instructions for scheduling at DermaSculpt\n4. Mention what to expect during the appointment\n5. Include any preparation instructions if relevant\n6. Sign on behalf of the practice\n\n" . $messageContext . "Generate a response focused on appointment scheduling:",
     
