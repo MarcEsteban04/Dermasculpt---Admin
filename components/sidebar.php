@@ -10,6 +10,7 @@ require_once __DIR__ . '/../config/connection.php';
 $currentPage = basename($_SERVER['PHP_SELF']);
 $unreadMessageCount = 0;
 $pendingAppointmentCount = 0;
+$unreadInquiryCount = 0;
 
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] && isset($_SESSION['dermatologist_id'])) {
     $dermatologistId = $_SESSION['dermatologist_id'];
@@ -34,6 +35,16 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] && isset($_SESSION['de
         $appointmentStmt->bind_result($pendingAppointmentCount);
         $appointmentStmt->fetch();
         $appointmentStmt->close();
+    }
+
+    // Query to count unread inquiries
+    $inquirySql = "SELECT COUNT(id) FROM contact_messages WHERE status = 'unread'";
+
+    if ($inquiryStmt = $conn->prepare($inquirySql)) {
+        $inquiryStmt->execute();
+        $inquiryStmt->bind_result($unreadInquiryCount);
+        $inquiryStmt->fetch();
+        $inquiryStmt->close();
     }
 
     $sidebar_firstName = htmlspecialchars($_SESSION['first_name'] ?? 'Dermatologist');
@@ -82,6 +93,19 @@ $profilePicturePath = (!empty($sidebar_profilePictureUrl) && $sidebar_profilePic
                 </span>
             <?php else: ?>
                 <span id="messageBadge" class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] items-center justify-center px-1.5 hidden">
+                    0
+                </span>
+            <?php endif; ?>
+        </a>
+        <a href="inquiries.php" class="sidebar-link flex items-center py-2.5 px-4 rounded-xl transition-all duration-200 font-bold shadow-sm <?php echo ($currentPage == 'inquiries.php') ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-700 hover:bg-cyan-100 hover:text-cyan-700'; ?>">
+            <i class="fas fa-envelope w-6 text-center mr-4"></i>
+            <span class="sidebar-text">Inquiries</span>
+            <?php if ($unreadInquiryCount > 0): ?>
+                <span id="inquiryBadge" class="ml-auto bg-purple-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] flex items-center justify-center px-1.5">
+                    <?php echo $unreadInquiryCount; ?>
+                </span>
+            <?php else: ?>
+                <span id="inquiryBadge" class="ml-auto bg-purple-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] items-center justify-center px-1.5 hidden">
                     0
                 </span>
             <?php endif; ?>

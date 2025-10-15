@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 01, 2025 at 10:23 PM
+-- Generation Time: Oct 15, 2025 at 10:35 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -22,6 +22,10 @@ SET time_zone = "+00:00";
 --
 
 -- --------------------------------------------------------
+
+--
+-- Table structure for table `ai_skin_scans`
+--
 
 CREATE TABLE `ai_skin_scans` (
   `scan_id` int(11) NOT NULL,
@@ -63,9 +67,9 @@ CREATE TABLE `appointments` (
 --
 
 INSERT INTO `appointments` (`appointment_id`, `user_id`, `patient_name`, `email`, `phone_number`, `dermatologist_id`, `appointment_date`, `appointment_time`, `reason_for_appointment`, `status`, `is_notified`, `user_notes`, `image_paths`, `dermatologist_notes`, `created_at`, `updated_at`) VALUES
-(2, 2, 'Princess Elfa', 'princesselfa07@gmail.com', '09690608014', 1, '2025-09-23', '14:00:00', 'test', 'Cancelled', 0, 'test', 'uploads/appointments/appt_68cc5126754480.98361456.jpg', NULL, '2025-09-18 18:36:22', '2025-10-01 15:00:10'),
-(3, 2, 'Princess Elfa', 'princesselfa07@gmail.com', '09690608014', 1, '2025-09-23', '14:30:00', 'test', 'Completed', 0, 'test', NULL, NULL, '2025-09-20 12:52:36', '2025-10-01 17:12:21'),
-(17, 1, 'Marc Esteban', 'marcdelacruzesteban@gmail.com', '09690608014', 1, '2025-10-10', '11:30:00', 'Consultation - Follow Up', 'Scheduled', 0, 'test', NULL, NULL, '2025-10-01 16:07:25', '2025-10-01 16:07:25');
+(20, 2, 'Princess Elfa', 'jijebip930@lorkex.com', '09934528204', 1, '2025-10-18', '07:00:00', 'Consultation - New Patient', 'Scheduled', 1, 'test', 'uploads/appointments/appt_68ef3206011ba4.30401452.jpg', NULL, '2025-10-15 05:32:54', '2025-10-15 06:31:56'),
+(22, 1, 'Marc Esteban', 'marcdelacruzesteban@gmail.com', '09934528204', 1, '2025-10-17', '11:00:00', 'test', 'Scheduled', 0, NULL, NULL, 'test', '2025-10-15 07:33:28', '2025-10-15 08:27:26'),
+(23, 1, 'test', 'marcdelacruzesteban@gmail.com', '09934528204', 1, '2025-10-15', '14:30:00', 'test', 'Completed', 0, NULL, NULL, 'test', '2025-10-15 08:20:11', '2025-10-15 08:27:52');
 
 -- --------------------------------------------------------
 
@@ -88,6 +92,26 @@ CREATE TABLE `appointment_history` (
   `notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `appointment_history`
+--
+
+INSERT INTO `appointment_history` (`history_id`, `appointment_id`, `old_status`, `new_status`, `old_date`, `new_date`, `old_time`, `new_time`, `action_type`, `performed_by`, `performed_by_role`, `notes`, `created_at`) VALUES
+(4, 20, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist', '2025-10-15 06:26:26'),
+(5, 20, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and confirmation message sent to patient', '2025-10-15 06:29:11'),
+(6, 20, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and confirmation message sent to patient', '2025-10-15 06:31:48'),
+(12, 22, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 07:59:22'),
+(13, 22, 'Scheduled', 'Cancelled', NULL, NULL, NULL, NULL, 'cancel', 'Maria Lourdes Santos', 'dermatologist', 'Appointment cancelled by dermatologist and email notification sent', '2025-10-15 08:00:38'),
+(14, 22, 'Scheduled', 'Completed', NULL, NULL, NULL, NULL, 'status_change', 'Maria Lourdes Santos', 'dermatologist', 'Appointment marked as completed by dermatologist and email notification sent', '2025-10-15 08:01:27'),
+(15, 22, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:09:13'),
+(16, 22, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:15:01'),
+(17, 22, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:17:59'),
+(18, 22, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:21:53'),
+(19, 23, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:23:01'),
+(20, 23, 'Pending', 'Scheduled', NULL, NULL, NULL, NULL, 'accept', 'Maria Lourdes Santos', 'dermatologist', 'Appointment accepted by dermatologist and email notification sent', '2025-10-15 08:26:16'),
+(21, 23, 'Scheduled', 'Cancelled', NULL, NULL, NULL, NULL, 'cancel', 'Maria Lourdes Santos', 'dermatologist', 'Appointment cancelled by dermatologist and email notification sent', '2025-10-15 08:27:37'),
+(22, 23, 'Scheduled', 'Completed', NULL, NULL, NULL, NULL, 'status_change', 'Maria Lourdes Santos', 'dermatologist', 'Appointment marked as completed by dermatologist and email notification sent', '2025-10-15 08:27:56');
 
 -- --------------------------------------------------------
 
@@ -112,6 +136,32 @@ CREATE TABLE `consents` (
 INSERT INTO `consents` (`consent_id`, `user_id`, `appointment_id`, `type`, `signer_name`, `signature_path`, `signed_at`) VALUES
 (1, 2, 2, 'photo', 'Princess Elfa', 'uploads/consents/consent_68cd93cc3c6101.18776106.png', '2025-09-20 01:33:00'),
 (2, 2, 2, 'telemed', 'Princess Elfa', 'uploads/consents/consent_68cd93cc3daa11.05920321.png', '2025-09-20 01:33:00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `contact_messages`
+--
+
+CREATE TABLE `contact_messages` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `phone_number` varchar(20) NOT NULL,
+  `message` text NOT NULL,
+  `status` enum('unread','read','replied') DEFAULT 'unread',
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `contact_messages`
+--
+
+INSERT INTO `contact_messages` (`id`, `name`, `email`, `phone_number`, `message`, `status`, `ip_address`, `user_agent`, `created_at`, `updated_at`) VALUES
+(1, 'Marc Esteban', 'marcdelacruzesteban@gmail.com', '09934528204', 'testtestasdasdadsasddadasdasdsadsadasds', 'unread', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', '2025-10-15 08:34:37', '2025-10-15 08:34:37');
 
 -- --------------------------------------------------------
 
@@ -157,7 +207,7 @@ CREATE TABLE `dermatologists` (
 --
 
 INSERT INTO `dermatologists` (`dermatologist_id`, `first_name`, `last_name`, `email`, `password`, `specialization`, `license_number`, `bio`, `profile_picture_url`, `created_at`) VALUES
-(1, 'Maria Lourdes', 'Santos', 'maria.santos@dermacare.com', '$2y$10$tFARs3NUmIRJ3ii/jYhOjOb72ZCo71Ya1TRYaP1T.6a.81D1jhIrm', 'Clinical Dermatology', 'LICENSE-001', 'Dr. Reyes is a board-certified dermatologist specializing in the diagnosis and treatment of skin cancers, acne, and psoriasis.', 'uploads/profiles/profile_1_1751454747.jpg', '2025-06-18 18:06:43');
+(1, 'Maria Lourdes', 'Santos', 'jijebip930@lorkex.com', '$2y$10$OkDBW0xnIPdvbSvS/4h6m.BO22t75Jz1Djgl8G8J6PkWPquwwo3vu', 'Clinical Dermatology', 'LICENSE-001', 'Dr. Reyes is a board-certified dermatologist specializing in the diagnosis and treatment of skin cancers, acne, and psoriasis.', 'uploads/profiles/profile_1_1751454747.jpg', '2025-06-18 18:06:43');
 
 -- --------------------------------------------------------
 
@@ -183,7 +233,12 @@ INSERT INTO `dermatologist_day_off` (`day_off_id`, `dermatologist_id`, `off_date
 (4, 1, '2025-07-15', '', '2025-07-02 11:25:42'),
 (5, 1, '2025-07-25', '', '2025-07-02 11:26:18'),
 (6, 1, '2025-08-19', 'test', '2025-08-17 16:22:03'),
-(7, 1, '2025-08-20', NULL, '2025-08-17 16:36:01');
+(7, 1, '2025-08-20', NULL, '2025-08-17 16:36:01'),
+(8, 1, '2025-10-16', 'test', '2025-10-15 06:01:37'),
+(9, 1, '2025-10-22', 'test', '2025-10-15 06:01:47'),
+(10, 1, '2025-10-19', NULL, '2025-10-15 06:02:12'),
+(11, 1, '2025-10-24', 'test', '2025-10-15 06:33:12'),
+(12, 1, '2025-10-20', NULL, '2025-10-15 06:33:23');
 
 -- --------------------------------------------------------
 
@@ -222,7 +277,7 @@ CREATE TABLE `education_bookmarks` (
 --
 
 INSERT INTO `education_bookmarks` (`bookmark_id`, `user_id`, `title`, `url`, `summary`, `type`, `tags_json`, `source`, `created_at`) VALUES
-(3, 2, 'Acne - Diagnosis and treatment', 'https://www.mayoclinic.org/diseases-conditions/acne/diagnosis-treatment/drc-20368048', 'Information on how acne is diagnosed and treated, including over-the-counter and prescription medications.', 'article', '[\"acne\",\"diagnosis\",\"treatment\",\"medication\",\"skincare\"]', 'Mayo Clinic', '2025-09-18 19:10:52');
+(22, 2, 'Acne', 'https://www.mayoclinic.org/diseases-conditions/acne/symptoms-causes/syc-20368047', 'Overview of acne, including causes, symptoms, and treatment options. Covers different types of acne and factors that can worsen it.', 'article', '[\"acne\",\"causes\",\"symptoms\",\"treatment\"]', 'mayoclinic.org', '2025-10-15 05:34:24');
 
 -- --------------------------------------------------------
 
@@ -250,78 +305,36 @@ CREATE TABLE `messages` (
 --
 
 INSERT INTO `messages` (`message_id`, `sender_id`, `sender_role`, `receiver_id`, `receiver_role`, `message_text`, `attachment_url`, `attachment_type`, `timestamp`, `is_read`, `edited_at`, `deleted_at`) VALUES
-(42, 2, 'user', 1, 'dermatologist', 'Hello Dr. Isabella Reyes, this is an automatic notification that I have booked a new appointment for your review. The requested schedule is on September 13, 2025 at 8:00 AM. Thank you.', NULL, NULL, '2025-09-12 21:18:41.347235', 1, NULL, NULL),
-(43, 2, 'user', 1, 'dermatologist', 'test', NULL, NULL, '2025-09-12 21:50:20.603502', 1, NULL, NULL),
-(44, 2, 'user', 1, 'dermatologist', 'test', NULL, NULL, '2025-09-12 22:41:14.777516', 1, NULL, NULL),
-(45, 1, 'dermatologist', 2, '', 'test', NULL, NULL, '2025-10-02 01:09:28.377016', 0, NULL, NULL),
-(46, 1, 'user', 1, 'dermatologist', 'hello', NULL, NULL, '2025-10-02 01:09:42.821041', 1, NULL, NULL);
+(60, 1, 'dermatologist', 1, 'user', 'Good news! Your dermatology appointment for Marc Esteban has been confirmed and scheduled for October 15, 2025 at 11:00 AM. Please arrive 15 minutes early for check-in. If you need to make any changes, please contact us as soon as possible. We look forward to seeing you!', NULL, NULL, '2025-10-15 01:17:54.714398', 1, NULL, NULL),
+(61, 1, 'dermatologist', 1, 'user', 'Good news! Your dermatology appointment for Marc Esteban has been confirmed and scheduled for October 15, 2025 at 11:00 AM. Please arrive 15 minutes early for check-in. If you need to make any changes, please contact us as soon as possible. We look forward to seeing you!', NULL, NULL, '2025-10-15 01:21:50.390498', 1, NULL, NULL),
+(62, 1, 'dermatologist', 1, 'user', 'Good news! Your dermatology appointment for test has been confirmed and scheduled for October 15, 2025 at 2:30 PM. Please arrive 15 minutes early for check-in. If you need to make any changes, please contact us as soon as possible. We look forward to seeing you!', NULL, NULL, '2025-10-15 01:22:58.004389', 1, NULL, NULL),
+(63, 1, 'dermatologist', 1, 'user', 'Good news! Your dermatology appointment for test has been confirmed and scheduled for October 15, 2025 at 2:30 PM. Please arrive 15 minutes early for check-in. If you need to make any changes, please contact us as soon as possible. We look forward to seeing you!', NULL, NULL, '2025-10-15 01:26:12.965336', 1, NULL, NULL),
+(64, 1, 'dermatologist', 1, 'user', 'Your appointment has been rescheduled from October 15, 2025 at 11:00 AM to October 17, 2025 at 11:00 AM. You will receive an email confirmation with the new details. Please arrive 15 minutes early. If you need to make further changes, please contact us as soon as possible.', NULL, NULL, '2025-10-15 01:27:26.126417', 1, NULL, NULL),
+(65, 1, 'dermatologist', 1, 'user', 'We regret to inform you that your appointment on October 15, 2025 at 2:30 PM has been cancelled. You will receive an email confirmation. If you would like to reschedule, please contact our office. We apologize for any inconvenience.', NULL, NULL, '2025-10-15 01:27:34.308476', 1, NULL, NULL),
+(66, 1, 'dermatologist', 1, 'user', 'Thank you for visiting DermaSculpt! Your appointment on October 15, 2025 at 2:30 PM has been completed. Please follow any post-treatment instructions provided. If you have any questions or need to schedule a follow-up, please contact us. We appreciate your trust in our care!', NULL, NULL, '2025-10-15 01:27:52.847000', 1, NULL, NULL);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `prescriptions`
+-- Table structure for table `otp_codes`
 --
 
-CREATE TABLE `prescriptions` (
-  `prescription_id` int(11) NOT NULL,
-  `appointment_id` int(11) NOT NULL,
-  `dermatologist_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `patient_name` varchar(255) NOT NULL,
-  `prescription_date` date NOT NULL,
-  `diagnosis` text DEFAULT NULL,
-  `medications` longtext NOT NULL,
-  `instructions` text DEFAULT NULL,
-  `prescription_file_path` varchar(500) DEFAULT NULL,
-  `is_downloaded` tinyint(1) DEFAULT 0,
-  `download_count` int(11) DEFAULT 0,
-  `last_downloaded_at` timestamp NULL DEFAULT NULL,
-  `notes` text DEFAULT NULL,
-  `status` enum('active','expired','cancelled') DEFAULT 'active',
-  `expires_at` date DEFAULT NULL,
+CREATE TABLE `otp_codes` (
+  `id` int(11) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `otp_code` varchar(6) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
+  `attempts` int(11) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `prescriptions`
+-- Dumping data for table `otp_codes`
 --
 
-INSERT INTO `prescriptions` (`prescription_id`, `appointment_id`, `dermatologist_id`, `user_id`, `patient_name`, `prescription_date`, `diagnosis`, `medications`, `instructions`, `prescription_file_path`, `is_downloaded`, `download_count`, `last_downloaded_at`, `notes`, `status`, `expires_at`, `created_at`, `updated_at`) VALUES
-(6, 3, 1, 2, 'Princess Elfa', '2025-10-02', 'test', '[{\"name\":\"test\",\"dosage\":\"test\",\"frequency\":\"test\",\"duration\":\"test\",\"instructions\":\"test\"}]', 'test', NULL, 0, 0, NULL, '', 'active', '2025-10-02', '2025-10-01 17:37:59', '2025-10-01 17:37:59');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `prescription_downloads`
---
-
-CREATE TABLE `prescription_downloads` (
-  `download_id` int(11) NOT NULL,
-  `prescription_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `download_type` enum('view','download','print') DEFAULT 'view',
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text DEFAULT NULL,
-  `downloaded_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `prescription_medications`
---
-
-CREATE TABLE `prescription_medications` (
-  `medication_id` int(11) NOT NULL,
-  `prescription_id` int(11) NOT NULL,
-  `medication_name` varchar(255) NOT NULL,
-  `dosage` varchar(100) NOT NULL,
-  `frequency` varchar(100) NOT NULL,
-  `duration` varchar(100) NOT NULL,
-  `instructions` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `otp_codes` (`id`, `email`, `otp_code`, `created_at`, `expires_at`, `is_used`, `attempts`) VALUES
+(4, 'princesselfa07@gmail.com', '734143', '2025-10-15 00:54:40', '2025-10-15 10:09:40', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -338,14 +351,6 @@ CREATE TABLE `progress_updates` (
   `image_path` varchar(255) NOT NULL,
   `ai_analysis` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `progress_updates`
---
-
-INSERT INTO `progress_updates` (`update_id`, `user_id`, `appointment_id`, `update_date`, `user_notes`, `image_path`, `ai_analysis`) VALUES
-(1, 2, 1, '2025-06-21 21:54:07', 'the redness has gone down but its still a little bit itchy ', 'progress_6856b97f630ed0.85911228.jpg', 'Compared to the original photo, the new photo shows a noticeable reduction in redness, which aligns with your observation that the redness has gone down. The inflammation appears to have subsided somewhat as well. This improvement is likely due to the consistent use of Clindamycin and Tretinoin as prescribed by the doctor for your Acne Vulgaris. Remember to continue using a gentle cleanser, moisturizer, and sunscreen as part of your skincare routine. While there\'s still some itchiness, the visual improvement is a great sign! Keep following your treatment plan, and you\'ll continue to see positive results.'),
-(3, 2, 1, '2025-06-22 15:36:41', 'the itchy is now gone too.', 'progress_6857b289a02793.02658700.jpg', 'Compared to your previous progress photo, the new photo shows a slight increase in redness and minor blemishes. However, in comparing the new photo to the original photo, the overall condition appears significantly improved since the beginning of your treatment. You originally reported \'test\' as your symptom and the doctor prescribed Clindamycin and Tretinoin. You also noted that the itchiness is now gone! Keep following your dermatologist\'s instructions regarding the Clindamycin solution, Tretinoin cream, gentle cleanser, non-comedogenic moisturizer, and daily sunscreen. Keep up the great work, and remember to follow up with your dermatologist in 6-8 weeks!');
 
 -- --------------------------------------------------------
 
@@ -373,6 +378,40 @@ INSERT INTO `saved_routines` (`routine_id`, `user_id`, `appointment_id`, `routin
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `skin_analysis`
+--
+
+CREATE TABLE `skin_analysis` (
+  `analysis_id` int(11) NOT NULL,
+  `dermatologist_id` int(11) NOT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `patient_name` varchar(255) DEFAULT NULL,
+  `patient_age` int(3) DEFAULT NULL,
+  `patient_gender` enum('Male','Female','Other') DEFAULT NULL,
+  `image_path` varchar(500) NOT NULL,
+  `image_filename` varchar(255) NOT NULL,
+  `analysis_prompt` text DEFAULT NULL,
+  `ai_diagnosis` longtext DEFAULT NULL,
+  `confidence_score` decimal(5,2) DEFAULT NULL,
+  `detected_conditions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`detected_conditions`)),
+  `recommendations` longtext DEFAULT NULL,
+  `dermatologist_notes` text DEFAULT NULL,
+  `dermatologist_diagnosis` text DEFAULT NULL,
+  `status` enum('pending','reviewed','confirmed','rejected') DEFAULT 'pending',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `skin_analysis`
+--
+
+INSERT INTO `skin_analysis` (`analysis_id`, `dermatologist_id`, `appointment_id`, `patient_name`, `patient_age`, `patient_gender`, `image_path`, `image_filename`, `analysis_prompt`, `ai_diagnosis`, `confidence_score`, `detected_conditions`, `recommendations`, `dermatologist_notes`, `dermatologist_diagnosis`, `status`, `created_at`, `updated_at`) VALUES
+(5, 1, 20, 'Princess Elfa', 22, 'Female', '../uploads/skin_analysis/appointment_analysis_20_68ef400292fa7.jpg', 'appointment_analysis_20_68ef400292fa7.jpg', '', 'Vitiligo', 95.00, '[{\"condition\":\"Pityriasis Alba\",\"probability\":3,\"rationale\":\"Pityriasis alba can present with hypopigmented patches, but typically has fine scaling and is more common in children. The distribution and complete depigmentation seen in the image make this less likely.\"},{\"condition\":\"Post-inflammatory Hypopigmentation\",\"probability\":2,\"rationale\":\"While possible, the distinct borders and complete lack of pigment suggest vitiligo over post-inflammatory hypopigmentation. A history of prior inflammation would be needed to support this diagnosis.\"}]', '**Visual Findings:**\nMultiple well-defined, depigmented (white) macules and patches are observed on the dorsal aspect of both hands and fingers. The distribution appears somewhat symmetric. The lesions are achromic, meaning there is a complete absence of pigment within the affected areas. No scaling, crusting, or other secondary changes are noted.\n\n**Clinical Recommendations:**\nA Wood\'s lamp examination can be used to accentuate the depigmentation and confirm the diagnosis. Consider referral to a dermatologist for further evaluation and management. Treatment options may include topical corticosteroids, topical calcineurin inhibitors, phototherapy, or depigmentation therapy for widespread disease. Sun protection is crucial to prevent sunburn in the depigmented areas.\n\n**Red Flags:**\nNone apparent in the image. However, it\'s important to rule out associated autoimmune conditions, which are more common in patients with vitiligo.\n\n**Patient Education:**\nVitiligo is a chronic skin condition characterized by loss of pigment in patches. It is not contagious. The exact cause is unknown, but it is thought to be an autoimmune disorder. Sun protection is essential to prevent sunburn and further damage to the depigmented skin. Psychological support may be beneficial, as vitiligo can affect self-esteem.\n\n**Follow-up:**\nFollow-up with a dermatologist is recommended to monitor the progression of the disease and adjust treatment as needed. The frequency of follow-up will depend on the severity of the condition and the chosen treatment approach. A reasonable initial follow-up would be in 3-6 months.\n\n', NULL, NULL, 'pending', '2025-10-15 06:32:40', '2025-10-15 06:32:40');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users`
 --
 
@@ -394,7 +433,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`user_id`, `first_name`, `last_name`, `email`, `password`, `phone_number`, `date_of_birth`, `profile_picture_url`, `created_at`) VALUES
 (1, 'Marc', 'Esteban', 'marcdelacruzesteban@gmail.com', '$2y$10$tFARs3NUmIRJ3ii/jYhOjOb72ZCo71Ya1TRYaP1T.6a.81D1jhIrm', '09690608014', '2002-11-04', 'uploads/picture/profile_68568d9e61815.jpg', '2025-06-18 14:23:03'),
-(2, 'Princess', 'Elfa', 'princesselfa07@gmail.com', '$2y$10$q09R3CHEaHCObWlgyzx3g.KYWTutAuMgiR1.X/W5yTOXGbLQ3BqV6', '09690608014', '2003-10-07', 'uploads/picture/profile_685475630b725.jpg', '2025-06-18 14:27:25'),
+(2, 'Princess', 'Elfa', 'jijebip930@lorkex.com', '$2y$12$qEoJ8KDRMgxwObhye0T0iuJU6puO66ny5cW5VESSt6sFADbi2FGpa', '09934528204', '2003-10-07', 'uploads/picture/profile_685475630b725.jpg', '2025-06-18 14:27:25'),
 (3, 'test', '', 'test_user@gmail.com', '$2y$10$XrO7uPOTmZ3W/104yQiv0uK8mwj9zEn6gbkvekemsCJBTGeewvdPW', NULL, NULL, NULL, '2025-08-23 17:05:40');
 
 --
@@ -433,6 +472,15 @@ ALTER TABLE `consents`
   ADD PRIMARY KEY (`consent_id`),
   ADD KEY `idx_user_appt` (`user_id`,`appointment_id`),
   ADD KEY `idx_type` (`type`);
+
+--
+-- Indexes for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`),
+  ADD KEY `idx_email` (`email`);
 
 --
 -- Indexes for table `conversation_participants`
@@ -480,31 +528,12 @@ ALTER TABLE `messages`
   ADD KEY `receiver_lookup_idx` (`receiver_id`,`is_read`);
 
 --
--- Indexes for table `prescriptions`
+-- Indexes for table `otp_codes`
 --
-ALTER TABLE `prescriptions`
-  ADD PRIMARY KEY (`prescription_id`),
-  ADD KEY `appointment_id` (`appointment_id`),
-  ADD KEY `dermatologist_id` (`dermatologist_id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `prescription_date` (`prescription_date`),
-  ADD KEY `status` (`status`);
-
---
--- Indexes for table `prescription_downloads`
---
-ALTER TABLE `prescription_downloads`
-  ADD PRIMARY KEY (`download_id`),
-  ADD KEY `prescription_id` (`prescription_id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `downloaded_at` (`downloaded_at`);
-
---
--- Indexes for table `prescription_medications`
---
-ALTER TABLE `prescription_medications`
-  ADD PRIMARY KEY (`medication_id`),
-  ADD KEY `prescription_id` (`prescription_id`);
+ALTER TABLE `otp_codes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_email_otp` (`email`,`otp_code`),
+  ADD KEY `idx_expires_at` (`expires_at`);
 
 --
 -- Indexes for table `progress_updates`
@@ -522,11 +551,27 @@ ALTER TABLE `saved_routines`
   ADD UNIQUE KEY `user_appointment` (`user_id`,`appointment_id`);
 
 --
+-- Indexes for table `skin_analysis`
+--
+ALTER TABLE `skin_analysis`
+  ADD PRIMARY KEY (`analysis_id`),
+  ADD KEY `dermatologist_id` (`dermatologist_id`),
+  ADD KEY `status` (`status`),
+  ADD KEY `created_at` (`created_at`),
+  ADD KEY `idx_derm_status` (`dermatologist_id`,`status`),
+  ADD KEY `idx_created_date` (`created_at`),
+  ADD KEY `fk_skin_analysis_appointment` (`appointment_id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `email` (`email`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
 
 --
 -- AUTO_INCREMENT for table `ai_skin_scans`
@@ -538,19 +583,25 @@ ALTER TABLE `ai_skin_scans`
 -- AUTO_INCREMENT for table `appointments`
 --
 ALTER TABLE `appointments`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `appointment_history`
 --
 ALTER TABLE `appointment_history`
-  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `consents`
 --
 ALTER TABLE `consents`
   MODIFY `consent_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `conversation_participants`
@@ -568,7 +619,7 @@ ALTER TABLE `dermatologists`
 -- AUTO_INCREMENT for table `dermatologist_day_off`
 --
 ALTER TABLE `dermatologist_day_off`
-  MODIFY `day_off_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `day_off_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `dermatologist_schedules`
@@ -580,43 +631,37 @@ ALTER TABLE `dermatologist_schedules`
 -- AUTO_INCREMENT for table `education_bookmarks`
 --
 ALTER TABLE `education_bookmarks`
-  MODIFY `bookmark_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `bookmark_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `messages`
 --
 ALTER TABLE `messages`
-  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=67;
 
 --
--- AUTO_INCREMENT for table `prescriptions`
+-- AUTO_INCREMENT for table `otp_codes`
 --
-ALTER TABLE `prescriptions`
-  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
-
---
--- AUTO_INCREMENT for table `prescription_downloads`
---
-ALTER TABLE `prescription_downloads`
-  MODIFY `download_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `prescription_medications`
---
-ALTER TABLE `prescription_medications`
-  MODIFY `medication_id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `otp_codes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `progress_updates`
 --
 ALTER TABLE `progress_updates`
-  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `saved_routines`
 --
 ALTER TABLE `saved_routines`
   MODIFY `routine_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `skin_analysis`
+--
+ALTER TABLE `skin_analysis`
+  MODIFY `analysis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -660,25 +705,12 @@ ALTER TABLE `dermatologist_schedules`
   ADD CONSTRAINT `dermatologist_schedules_ibfk_1` FOREIGN KEY (`dermatologist_id`) REFERENCES `dermatologists` (`dermatologist_id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `prescriptions`
+-- Constraints for table `skin_analysis`
 --
-ALTER TABLE `prescriptions`
-  ADD CONSTRAINT `prescriptions_ibfk_1` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`appointment_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `prescriptions_ibfk_2` FOREIGN KEY (`dermatologist_id`) REFERENCES `dermatologists` (`dermatologist_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `prescriptions_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `prescription_downloads`
---
-ALTER TABLE `prescription_downloads`
-  ADD CONSTRAINT `prescription_downloads_ibfk_1` FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions` (`prescription_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `prescription_downloads_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `prescription_medications`
---
-ALTER TABLE `prescription_medications`
-  ADD CONSTRAINT `prescription_medications_ibfk_1` FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions` (`prescription_id`) ON DELETE CASCADE;
+ALTER TABLE `skin_analysis`
+  ADD CONSTRAINT `fk_skin_analysis_appointment` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`appointment_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `skin_analysis_ibfk_1` FOREIGN KEY (`dermatologist_id`) REFERENCES `dermatologists` (`dermatologist_id`) ON DELETE CASCADE;
+COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
