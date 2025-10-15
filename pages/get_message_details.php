@@ -283,7 +283,7 @@ ob_start();
                                 <p class="text-sm text-gray-600">
                                     <?php 
                                     if ($replyType === 'dermatologist') {
-                                        echo htmlspecialchars($dermatologist['email'] ?? 'doctor@dermasculpt.com');
+                                        echo htmlspecialchars($dermatologist['email']);
                                     } else {
                                         echo htmlspecialchars($reply['from_email']);
                                     }
