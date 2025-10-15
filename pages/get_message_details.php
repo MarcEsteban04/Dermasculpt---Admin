@@ -184,10 +184,18 @@ ob_start();
                 </button>
             </div>
             
-            <div class="mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                <button 
+                    onclick="getGrammarFixer()" 
+                    class="ai-suggestion-btn bg-purple-100 text-purple-800 px-3 py-2 rounded-lg hover:bg-purple-200 text-sm flex items-center justify-center gap-1"
+                >
+                    <i class="fas fa-spell-check"></i>
+                    Grammar Fixer
+                </button>
+            
                 <button 
                     onclick="getAISuggestion('analyze_inquiry')" 
-                    class="ai-suggestion-btn bg-orange-100 text-orange-800 px-4 py-2 rounded-lg hover:bg-orange-200 text-sm flex items-center gap-2"
+                    class="ai-suggestion-btn bg-orange-100 text-orange-800 px-3 py-2 rounded-lg hover:bg-orange-200 text-sm flex items-center justify-center gap-1"
                 >
                     <i class="fas fa-search"></i>
                     Analyze Inquiry
@@ -298,9 +306,9 @@ ob_start();
 </div>
 
 <script>
-let currentAISuggestion = '';
+window.currentAISuggestion = '';
 
-function toggleAIAssistant() {
+window.toggleAIAssistant = function() {
     const panel = document.getElementById('aiAssistantPanel');
     const btn = document.getElementById('aiToggleBtn');
     
@@ -316,17 +324,21 @@ function toggleAIAssistant() {
     }
 }
 
-function getAISuggestion(action) {
+window.getAISuggestion = function(action) {
     const messageId = <?php echo $message['id']; ?>;
-    const buttons = document.querySelectorAll('.ai-suggestion-btn');
     const responseArea = document.getElementById('aiResponseArea');
     const suggestionText = document.getElementById('aiSuggestionText');
     
-    // Disable all buttons and show loading
-    buttons.forEach(btn => {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    });
+    // Find the clicked button and show loading only on that button
+    const clickedButton = event.target.closest('.ai-suggestion-btn');
+    if (!clickedButton) return;
+    
+    const originalContent = clickedButton.innerHTML;
+    
+    // Disable only the clicked button and show loading
+    clickedButton.disabled = true;
+    clickedButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    clickedButton.setAttribute('data-original', originalContent);
     
     responseArea.classList.remove('hidden');
     suggestionText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating AI suggestion...';
@@ -344,7 +356,7 @@ function getAISuggestion(action) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentAISuggestion = data.suggestion;
+            window.currentAISuggestion = data.suggestion;
             suggestionText.textContent = data.suggestion;
         } else {
             suggestionText.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>Error: ' + (data.error || 'Failed to generate suggestion') + '</span>';
@@ -355,27 +367,69 @@ function getAISuggestion(action) {
         suggestionText.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>An error occurred while generating the suggestion.</span>';
     })
     .finally(() => {
-        // Re-enable buttons and restore original text
-        setTimeout(() => {
-            buttons.forEach(btn => {
-                btn.disabled = false;
-                const originalContent = {
-                    'suggest_reply': '<i class="fas fa-lightbulb"></i> General Reply',
-                    'suggest_professional': '<i class="fas fa-user-md"></i> Professional',
-                    'suggest_empathetic': '<i class="fas fa-heart"></i> Empathetic',
-                    'suggest_appointment': '<i class="fas fa-calendar"></i> Appointment',
-                    'analyze_inquiry': '<i class="fas fa-search"></i> Analyze Inquiry'
-                };
-                
-                if (btn.onclick && btn.onclick.toString().includes(action)) {
-                    btn.innerHTML = originalContent[action] || btn.innerHTML;
-                }
-            });
-        }, 500);
+        // Re-enable only the clicked button and restore original content
+        clickedButton.disabled = false;
+        clickedButton.innerHTML = clickedButton.getAttribute('data-original');
+        clickedButton.removeAttribute('data-original');
     });
 }
 
-function getCustomAISuggestion() {
+window.getGrammarFixer = function() {
+    const replyTextarea = document.getElementById('replyMessage');
+    const textToImprove = replyTextarea.value.trim();
+    const responseArea = document.getElementById('aiResponseArea');
+    const suggestionText = document.getElementById('aiSuggestionText');
+    
+    if (!textToImprove) {
+        parent.CustomAlert.fire('Error!', 'Please enter some text in the reply message area first.', 'error');
+        return;
+    }
+    
+    // Find the clicked button and show loading
+    const clickedButton = event.target.closest('.ai-suggestion-btn');
+    if (!clickedButton) return;
+    
+    const originalContent = clickedButton.innerHTML;
+    
+    clickedButton.disabled = true;
+    clickedButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fixing...';
+    clickedButton.setAttribute('data-original', originalContent);
+    
+    responseArea.classList.remove('hidden');
+    suggestionText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Improving grammar and clarity...';
+    
+    fetch('../backend/ai_inquiry_assistant.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'grammar_fixer',
+            message_id: 0,
+            text_to_improve: textToImprove
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.currentAISuggestion = data.suggestion;
+            suggestionText.textContent = data.suggestion;
+        } else {
+            suggestionText.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>Error: ' + (data.error || 'Failed to improve text') + '</span>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        suggestionText.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>An error occurred while improving the text.</span>';
+    })
+    .finally(() => {
+        clickedButton.disabled = false;
+        clickedButton.innerHTML = clickedButton.getAttribute('data-original');
+        clickedButton.removeAttribute('data-original');
+    });
+}
+
+window.getCustomAISuggestion = function() {
     const customPrompt = document.getElementById('customPrompt').value.trim();
     const messageId = <?php echo $message['id']; ?>;
     const responseArea = document.getElementById('aiResponseArea');
@@ -383,7 +437,7 @@ function getCustomAISuggestion() {
     const generateBtn = document.querySelector('button[onclick="getCustomAISuggestion()"]');
     
     if (!customPrompt) {
-        Swal.fire('Error!', 'Please enter a custom prompt.', 'error');
+        parent.CustomAlert.fire('Error!', 'Please enter a custom prompt.', 'error');
         return;
     }
     
@@ -407,7 +461,7 @@ function getCustomAISuggestion() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentAISuggestion = data.suggestion;
+            window.currentAISuggestion = data.suggestion;
             suggestionText.textContent = data.suggestion;
         } else {
             suggestionText.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>Error: ' + (data.error || 'Failed to generate suggestion') + '</span>';
@@ -423,46 +477,29 @@ function getCustomAISuggestion() {
     });
 }
 
-function useAISuggestion() {
-    if (currentAISuggestion) {
-        document.getElementById('replyMessage').value = currentAISuggestion;
-        Swal.fire({
-            title: 'Suggestion Applied!',
-            text: 'AI suggestion has been added to your reply.',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-        });
+window.useAISuggestion = function() {
+    if (window.currentAISuggestion) {
+        document.getElementById('replyMessage').value = window.currentAISuggestion;
     }
 }
 
-function appendAISuggestion() {
-    if (currentAISuggestion) {
+window.appendAISuggestion = function() {
+    if (window.currentAISuggestion) {
         const replyTextarea = document.getElementById('replyMessage');
         const currentText = replyTextarea.value;
         const separator = currentText ? '\n\n' : '';
-        replyTextarea.value = currentText + separator + currentAISuggestion;
-        Swal.fire({
-            title: 'Suggestion Appended!',
-            text: 'AI suggestion has been appended to your reply.',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-        });
+        replyTextarea.value = currentText + separator + window.currentAISuggestion;
     }
 }
 
-function deleteMessage(messageId) {
-    Swal.fire({
+window.deleteMessage = function(messageId) {
+    parent.CustomAlert.fire({
         title: 'Delete Message?',
         text: 'This action cannot be undone.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
+        confirmButtonText: 'Yes, delete it!',
+        onConfirm: function() {
             fetch('inquiry_actions.php', {
                 method: 'POST',
                 headers: {
@@ -476,18 +513,22 @@ function deleteMessage(messageId) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    Swal.fire('Deleted!', 'Message has been deleted.', 'success')
-                        .then(() => {
-                            closeMessageModal();
-                            window.location.reload();
-                        });
+                    parent.CustomAlert.fire({
+                        title: 'Deleted!',
+                        text: 'Message has been deleted.',
+                        icon: 'success',
+                        onConfirm: () => {
+                            parent.closeMessageModal();
+                            parent.location.reload();
+                        }
+                    });
                 } else {
-                    Swal.fire('Error!', data.message || 'Failed to delete message.', 'error');
+                    parent.CustomAlert.fire('Error!', data.message || 'Failed to delete message.', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                Swal.fire('Error!', 'An error occurred while deleting the message.', 'error');
+                parent.CustomAlert.fire('Error!', 'An error occurred while deleting the message.', 'error');
             });
         }
     });

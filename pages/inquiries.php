@@ -179,27 +179,39 @@ function timeAgo($datetime) {
         }
 
         .message-item {
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
         }
 
         .message-item:hover {
-            background-color: #f8fafc;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 10px 30px rgba(8, 145, 178, 0.15);
+        }
+        
+        .message-item:active {
+            transform: translateY(0) scale(0.99);
         }
 
         .message-item.unread {
-            border-left: 4px solid #ef4444;
-            background-color: #fef2f2;
+            border-left: 5px solid #ef4444;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
         }
 
         .message-item.read {
-            border-left: 4px solid #f59e0b;
+            border-left: 5px solid #f59e0b;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);
         }
 
         .message-item.replied {
-            border-left: 4px solid #10b981;
+            border-left: 5px solid #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
         }
 
         .modal {
@@ -227,11 +239,23 @@ function timeAgo($datetime) {
 
         .email-interface {
             height: calc(100vh - 8rem);
+            min-height: 600px;
         }
 
         .message-list {
             height: calc(100vh - 12rem);
+            min-height: 400px;
             overflow-y: auto;
+        }
+        
+        .main-content {
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+        
+        #mainContent {
+            overflow-y: auto;
+            height: calc(100vh - 4rem);
         }
 
         .message-preview {
@@ -241,13 +265,66 @@ function timeAgo($datetime) {
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        
+        /* Custom Alert Styles */
+        .custom-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-alert.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .custom-alert-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .custom-alert.show .custom-alert-content {
+            transform: scale(1) translateY(0);
+        }
+        
+        .alert-success {
+            border-top: 4px solid #10b981;
+        }
+        
+        .alert-error {
+            border-top: 4px solid #ef4444;
+        }
+        
+        .alert-warning {
+            border-top: 4px solid #f59e0b;
+        }
+        
+        .alert-question {
+            border-top: 4px solid #3b82f6;
+        }
     </style>
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 to-cyan-100 text-gray-800">
     <?php include '../components/sidebar.php'; ?>
     
-    <div class="main-content flex flex-col h-screen">
+    <div class="main-content flex flex-col min-h-screen">
         <header class="bg-white shadow-sm flex items-center justify-between p-4 h-16 flex-shrink-0 z-30">
             <button id="sidebar-toggle" onclick="toggleSidebar()" class="text-cyan-600 hover:text-cyan-800">
                 <i class="fas fa-bars fa-xl"></i>
@@ -378,16 +455,16 @@ function timeAgo($datetime) {
             </div>
 
             <!-- Email Interface -->
-            <div class="bg-white rounded-xl shadow-lg email-interface flex">
+            <div class="bg-white rounded-2xl shadow-2xl email-interface flex border border-gray-100 overflow-hidden backdrop-blur-sm">
                 <!-- Left Sidebar - Filters and Counts -->
-                <div class="w-64 border-r border-gray-200 p-4 flex flex-col">
+                <div class="w-64 border-r border-gray-200 p-6 flex flex-col bg-gradient-to-b from-gray-50 to-white">
                     <div class="mb-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-4">Inbox</h3>
                         
                         <!-- Status Filters -->
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <a href="?status=all&search=<?php echo urlencode($search_query); ?>" 
-                               class="flex items-center justify-between p-3 rounded-lg transition-colors <?php echo $status_filter === 'all' ? 'bg-cyan-100 text-cyan-800' : 'hover:bg-gray-100'; ?>">
+                               class="flex items-center justify-between p-4 rounded-xl transition-all duration-300 <?php echo $status_filter === 'all' ? 'bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-800 shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'; ?>">
                                 <div class="flex items-center">
                                     <i class="fas fa-inbox mr-3 text-gray-600"></i>
                                     <span class="font-medium">All Messages</span>
@@ -396,7 +473,7 @@ function timeAgo($datetime) {
                             </a>
                             
                             <a href="?status=unread&search=<?php echo urlencode($search_query); ?>" 
-                               class="flex items-center justify-between p-3 rounded-lg transition-colors <?php echo $status_filter === 'unread' ? 'bg-red-100 text-red-800' : 'hover:bg-gray-100'; ?>">
+                               class="flex items-center justify-between p-4 rounded-xl transition-all duration-300 <?php echo $status_filter === 'unread' ? 'bg-gradient-to-r from-red-100 to-pink-100 text-red-800 shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'; ?>">
                                 <div class="flex items-center">
                                     <i class="fas fa-envelope mr-3 text-red-600"></i>
                                     <span class="font-medium">Unread</span>
@@ -405,7 +482,7 @@ function timeAgo($datetime) {
                             </a>
                             
                             <a href="?status=read&search=<?php echo urlencode($search_query); ?>" 
-                               class="flex items-center justify-between p-3 rounded-lg transition-colors <?php echo $status_filter === 'read' ? 'bg-yellow-100 text-yellow-800' : 'hover:bg-gray-100'; ?>">
+                               class="flex items-center justify-between p-4 rounded-xl transition-all duration-300 <?php echo $status_filter === 'read' ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'; ?>">
                                 <div class="flex items-center">
                                     <i class="fas fa-envelope-open mr-3 text-yellow-600"></i>
                                     <span class="font-medium">Read</span>
@@ -414,7 +491,7 @@ function timeAgo($datetime) {
                             </a>
                             
                             <a href="?status=replied&search=<?php echo urlencode($search_query); ?>" 
-                               class="flex items-center justify-between p-3 rounded-lg transition-colors <?php echo $status_filter === 'replied' ? 'bg-green-100 text-green-800' : 'hover:bg-gray-100'; ?>">
+                               class="flex items-center justify-between p-4 rounded-xl transition-all duration-300 <?php echo $status_filter === 'replied' ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'; ?>">
                                 <div class="flex items-center">
                                     <i class="fas fa-reply mr-3 text-green-600"></i>
                                     <span class="font-medium">Replied</span>
@@ -425,13 +502,13 @@ function timeAgo($datetime) {
                     </div>
 
                     <!-- Search -->
-                    <div class="mb-4">
+                    <div class="mb-6">
                         <form method="GET" class="relative">
                             <input type="hidden" name="status" value="<?php echo htmlspecialchars($status_filter); ?>">
                             <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>" 
                                    placeholder="Search messages..." 
-                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
-                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                   class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm hover:shadow-md">
+                            <i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
                         </form>
                     </div>
                 </div>
@@ -519,8 +596,28 @@ function timeAgo($datetime) {
         </main>
     </div>
 
+    <!-- Custom Alert Modal -->
+    <div id="customAlert" class="custom-alert">
+        <div class="custom-alert-content">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div id="alertIcon" class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mr-4">
+                        <!-- Icon will be inserted here -->
+                    </div>
+                    <div class="flex-1">
+                        <h3 id="alertTitle" class="text-lg font-semibold text-gray-900"></h3>
+                        <p id="alertMessage" class="text-sm text-gray-600 mt-1"></p>
+                    </div>
+                </div>
+                <div id="alertButtons" class="flex justify-end space-x-3">
+                    <!-- Buttons will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Message Detail Modal -->
-    <div id="messageModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div id="messageModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="absolute inset-0 bg-black bg-opacity-50" onclick="closeMessageModal()"></div>
         <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center p-6 border-b">
@@ -583,13 +680,14 @@ function timeAgo($datetime) {
             const titleElement = document.getElementById('aiInsightsTitle');
             const contentElement = document.getElementById('aiInsightsContent');
             
-            // Disable all buttons and show loading
-            buttons.forEach(btn => {
-                btn.disabled = true;
-                const originalContent = btn.innerHTML;
-                btn.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...</div>';
-                btn.setAttribute('data-original', originalContent);
-            });
+            // Find the clicked button and show loading only on that button
+            const clickedButton = event.target.closest('.ai-bulk-btn');
+            const originalContent = clickedButton.innerHTML;
+            
+            // Disable only the clicked button and show loading
+            clickedButton.disabled = true;
+            clickedButton.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...</div>';
+            clickedButton.setAttribute('data-original', originalContent);
             
             resultsArea.classList.remove('hidden');
             contentElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating AI insights...';
@@ -639,13 +737,11 @@ function timeAgo($datetime) {
                 contentElement.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>An error occurred while generating insights.</span>';
             })
             .finally(() => {
-                // Re-enable buttons and restore original content
+                // Re-enable only the clicked button and restore original content
                 setTimeout(() => {
-                    buttons.forEach(btn => {
-                        btn.disabled = false;
-                        btn.innerHTML = btn.getAttribute('data-original');
-                        btn.removeAttribute('data-original');
-                    });
+                    clickedButton.disabled = false;
+                    clickedButton.innerHTML = clickedButton.getAttribute('data-original');
+                    clickedButton.removeAttribute('data-original');
                 }, 1000);
             });
         }
@@ -655,7 +751,7 @@ function timeAgo($datetime) {
             const title = document.getElementById('aiInsightsTitle').textContent;
             
             if (!content || content.includes('Generating AI insights')) {
-                Swal.fire('Error!', 'No insights to export. Please generate insights first.', 'error');
+                CustomAlert.fire('Error!', 'No insights to export. Please generate insights first.', 'error');
                 return;
             }
             
@@ -669,26 +765,22 @@ function timeAgo($datetime) {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Swal.fire({
+            CustomAlert.fire({
                 title: 'Exported!',
                 text: 'AI insights have been exported to a text file.',
                 icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
+                timer: 2000
             });
         }
 
         function markAllAsRead() {
-            Swal.fire({
+            CustomAlert.fire({
                 title: 'Mark All as Read?',
                 text: 'This will mark all unread messages as read.',
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#0891b2',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, mark all read'
-            }).then((result) => {
-                if (result.isConfirmed) {
+                confirmButtonText: 'Yes, mark all as read!',
+                onConfirm: function() {
                     fetch('inquiry_actions.php', {
                         method: 'POST',
                         headers: {
@@ -701,15 +793,19 @@ function timeAgo($datetime) {
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            Swal.fire('Success!', 'All messages marked as read.', 'success')
-                                .then(() => window.location.reload());
+                            CustomAlert.fire({
+                                title: 'Success!',
+                                text: 'All messages marked as read.',
+                                icon: 'success',
+                                onConfirm: () => window.location.reload()
+                            });
                         } else {
-                            Swal.fire('Error!', data.message || 'Failed to mark messages as read.', 'error');
+                            CustomAlert.fire('Error!', data.message || 'Failed to mark messages as read.', 'error');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        Swal.fire('Error!', 'An error occurred while processing your request.', 'error');
+                        CustomAlert.fire('Error!', 'An error occurred while processing your request.', 'error');
                     });
                 }
             });
@@ -734,6 +830,20 @@ function timeAgo($datetime) {
                 .then(data => {
                     if (data.success) {
                         content.innerHTML = data.html;
+                        
+                        // Execute any scripts in the loaded content
+                        const scripts = content.querySelectorAll('script');
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            newScript.textContent = script.textContent;
+                            document.head.appendChild(newScript);
+                            document.head.removeChild(newScript);
+                        });
+                        
+                        // Update UI in real-time if message was marked as read
+                        if (data.message && data.message.status === 'read') {
+                            updateMessageStatusInList(messageId, 'read');
+                        }
                     } else {
                         content.innerHTML = `
                             <div class="p-6 text-center text-red-600">
@@ -752,6 +862,51 @@ function timeAgo($datetime) {
                         </div>
                     `;
                 });
+        }
+        
+        function updateMessageStatusInList(messageId, newStatus) {
+            const messageItem = document.querySelector(`[onclick="openMessageModal(${messageId})"]`);
+            if (messageItem) {
+                // Remove old status classes
+                messageItem.classList.remove('unread', 'read', 'replied');
+                // Add new status class
+                messageItem.classList.add(newStatus);
+                
+                // Update status badge
+                const statusBadge = messageItem.querySelector('.px-2.py-1.text-xs.rounded-full');
+                if (statusBadge) {
+                    statusBadge.className = 'ml-2 px-2 py-1 text-xs rounded-full';
+                    switch(newStatus) {
+                        case 'unread':
+                            statusBadge.className += ' bg-red-100 text-red-800';
+                            break;
+                        case 'read':
+                            statusBadge.className += ' bg-yellow-100 text-yellow-800';
+                            break;
+                        case 'replied':
+                            statusBadge.className += ' bg-green-100 text-green-800';
+                            break;
+                    }
+                    statusBadge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                }
+                
+                // Update icon
+                const icon = messageItem.querySelector('i.fas');
+                if (icon) {
+                    icon.className = 'fas mr-2 text-sm';
+                    switch(newStatus) {
+                        case 'unread':
+                            icon.className += ' fa-envelope';
+                            break;
+                        case 'read':
+                            icon.className += ' fa-envelope-open';
+                            break;
+                        case 'replied':
+                            icon.className += ' fa-reply';
+                            break;
+                    }
+                }
+            }
         }
 
         function closeMessageModal() {
@@ -793,7 +948,7 @@ function timeAgo($datetime) {
             const replyBtn = document.getElementById('sendReplyBtn');
             
             if (!replyText) {
-                Swal.fire('Error!', 'Please enter a reply message.', 'error');
+                CustomAlert.fire('Error!', 'Please enter a reply message.', 'error');
                 return;
             }
             
@@ -813,20 +968,28 @@ function timeAgo($datetime) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    Swal.fire('Success!', 'Reply sent successfully!', 'success')
-                        .then(() => {
+                    // Update message status to replied in real-time
+                    updateMessageStatusInList(messageId, 'replied');
+                    
+                    CustomAlert.fire({
+                        title: 'Success!',
+                        text: 'Reply sent successfully!',
+                        icon: 'success',
+                        onConfirm: () => {
                             closeMessageModal();
-                            window.location.reload();
-                        });
+                            // Don't reload the entire page, just refresh the counts
+                            updateMessageCounts();
+                        }
+                    });
                 } else {
-                    Swal.fire('Error!', data.message || 'Failed to send reply.', 'error');
+                    CustomAlert.fire('Error!', data.message || 'Failed to send reply.', 'error');
                     replyBtn.disabled = false;
                     replyBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reply';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                Swal.fire('Error!', 'An error occurred while sending the reply.', 'error');
+                CustomAlert.fire('Error!', 'An error occurred while sending the reply.', 'error');
                 replyBtn.disabled = false;
                 replyBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reply';
             });
@@ -842,11 +1005,255 @@ function timeAgo($datetime) {
             }
         });
 
+        // Function to update message counts without page reload
+        function updateMessageCounts() {
+            fetch('get_message_counts.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update count badges
+                        const counts = data.counts;
+                        document.querySelector('a[href*="status=all"] .bg-gray-200').textContent = counts.all || 0;
+                        document.querySelector('a[href*="status=unread"] .bg-red-200').textContent = counts.unread || 0;
+                        document.querySelector('a[href*="status=read"] .bg-yellow-200').textContent = counts.read || 0;
+                        document.querySelector('a[href*="status=replied"] .bg-green-200').textContent = counts.replied || 0;
+                    }
+                })
+                .catch(error => console.error('Error updating counts:', error));
+        }
+
         // Close modal with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeMessageModal();
             }
+        });
+        
+        // AI Assistant functions for modal
+        window.currentAISuggestion = '';
+        
+        window.toggleAIAssistant = function() {
+            const panel = document.getElementById('aiAssistantPanel');
+            const btn = document.getElementById('aiToggleBtn');
+            
+            if (panel && panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-robot"></i> Hide AI';
+                    btn.classList.add('bg-purple-700');
+                }
+            } else if (panel) {
+                panel.classList.add('hidden');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-robot"></i> AI Assistant';
+                    btn.classList.remove('bg-purple-700');
+                }
+                const responseArea = document.getElementById('aiResponseArea');
+                if (responseArea) {
+                    responseArea.classList.add('hidden');
+                }
+            }
+        }
+        
+        // Global AI suggestion functions that will be overridden by modal content
+        window.getAISuggestion = function(action) {
+            console.log('AI Suggestion requested:', action);
+            // This will be overridden when modal loads
+        };
+        
+        window.getCustomAISuggestion = function() {
+            console.log('Custom AI Suggestion requested');
+            // This will be overridden when modal loads
+        };
+        
+        window.useAISuggestion = function() {
+            console.log('Use AI Suggestion requested');
+            // This will be overridden when modal loads
+        };
+        
+        window.appendAISuggestion = function() {
+            console.log('Append AI Suggestion requested');
+            // This will be overridden when modal loads
+        };
+        
+        window.deleteMessage = function(messageId) {
+            console.log('Delete message requested:', messageId);
+            // This will be overridden when modal loads
+        };
+        
+        window.getGrammarFixer = function() {
+            console.log('Grammar fixer requested');
+            // This will be overridden when modal loads
+        };
+        
+        // Custom Alert System
+        function showCustomAlert(type, title, message, options = {}) {
+            const alert = document.getElementById('customAlert');
+            const alertContent = alert.querySelector('.custom-alert-content');
+            const alertIcon = document.getElementById('alertIcon');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertButtons = document.getElementById('alertButtons');
+            
+            // Remove existing type classes
+            alertContent.classList.remove('alert-success', 'alert-error', 'alert-warning', 'alert-question');
+            
+            // Set icon and colors based on type
+            let iconHtml = '';
+            let iconBg = '';
+            
+            switch(type) {
+                case 'success':
+                    iconHtml = '<i class="fas fa-check text-white"></i>';
+                    iconBg = 'bg-green-500';
+                    alertContent.classList.add('alert-success');
+                    break;
+                case 'error':
+                    iconHtml = '<i class="fas fa-times text-white"></i>';
+                    iconBg = 'bg-red-500';
+                    alertContent.classList.add('alert-error');
+                    break;
+                case 'warning':
+                    iconHtml = '<i class="fas fa-exclamation-triangle text-white"></i>';
+                    iconBg = 'bg-yellow-500';
+                    alertContent.classList.add('alert-warning');
+                    break;
+                case 'question':
+                    iconHtml = '<i class="fas fa-question text-white"></i>';
+                    iconBg = 'bg-blue-500';
+                    alertContent.classList.add('alert-question');
+                    break;
+            }
+            
+            alertIcon.className = `flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mr-4 ${iconBg}`;
+            alertIcon.innerHTML = iconHtml;
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            
+            // Create buttons
+            alertButtons.innerHTML = '';
+            
+            if (options.showCancelButton) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors';
+                cancelBtn.textContent = options.cancelButtonText || 'Cancel';
+                cancelBtn.onclick = () => {
+                    hideCustomAlert();
+                    if (options.onCancel) options.onCancel();
+                };
+                alertButtons.appendChild(cancelBtn);
+            }
+            
+            const confirmBtn = document.createElement('button');
+            let confirmClass = 'px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 transition-colors ';
+            
+            switch(type) {
+                case 'success':
+                    confirmClass += 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
+                    break;
+                case 'error':
+                    confirmClass += 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+                    break;
+                case 'warning':
+                    confirmClass += 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+                    break;
+                case 'question':
+                    confirmClass += 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
+                    break;
+            }
+            
+            confirmBtn.className = confirmClass;
+            confirmBtn.textContent = options.confirmButtonText || 'OK';
+            confirmBtn.onclick = () => {
+                hideCustomAlert();
+                if (options.onConfirm) options.onConfirm();
+            };
+            alertButtons.appendChild(confirmBtn);
+            
+            // Show alert
+            alert.classList.add('show');
+            
+            // Auto-hide for simple alerts
+            if (options.timer && !options.showCancelButton) {
+                setTimeout(() => {
+                    hideCustomAlert();
+                    if (options.onConfirm) options.onConfirm();
+                }, options.timer);
+            }
+        }
+        
+        function hideCustomAlert() {
+            const alert = document.getElementById('customAlert');
+            alert.classList.remove('show');
+        }
+        
+        // Custom alert wrapper functions
+        window.CustomAlert = {
+            fire: function(options) {
+                if (typeof options === 'string') {
+                    // Simple usage: CustomAlert.fire('Success!', 'Message', 'success')
+                    const title = arguments[0];
+                    const message = arguments[1] || '';
+                    const type = arguments[2] || 'success';
+                    showCustomAlert(type, title, message);
+                } else {
+                    // Object usage: CustomAlert.fire({title: 'Title', text: 'Message', icon: 'success'})
+                    showCustomAlert(
+                        options.icon || 'success',
+                        options.title || '',
+                        options.text || '',
+                        {
+                            showCancelButton: options.showCancelButton,
+                            confirmButtonText: options.confirmButtonText,
+                            cancelButtonText: options.cancelButtonText,
+                            timer: options.timer,
+                            onConfirm: options.onConfirm,
+                            onCancel: options.onCancel
+                        }
+                    );
+                }
+            }
+        };
+        
+        // Click outside to close
+        document.getElementById('customAlert').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideCustomAlert();
+            }
+        });
+
+        // Add smooth animations and enhanced interactions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to message items
+            const messageItems = document.querySelectorAll('.message-item');
+            messageItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                });
+            });
+            
+            // Add loading states to buttons
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (!this.disabled && this.type !== 'button') {
+                        const originalText = this.innerHTML;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+                        this.disabled = true;
+                        
+                        setTimeout(() => {
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                        }, 2000);
+                    }
+                });
+            });
         });
     </script>
 </body>

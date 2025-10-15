@@ -17,6 +17,7 @@ $requestData = json_decode(file_get_contents('php://input'), true);
 $action = $requestData['action'] ?? '';
 $messageId = $requestData['message_id'] ?? 0;
 $customPrompt = $requestData['custom_prompt'] ?? '';
+$textToImprove = $requestData['text_to_improve'] ?? '';
 
 if (empty($action)) {
     http_response_code(400);
@@ -24,10 +25,19 @@ if (empty($action)) {
     exit;
 }
 
+// Get dermatologist information for context
+$dermatologistId = $_SESSION['dermatologist_id'];
+$stmt = $conn->prepare("SELECT first_name, last_name, specialization, license_number, bio FROM dermatologists WHERE dermatologist_id = ?");
+$stmt->bind_param("i", $dermatologistId);
+$stmt->execute();
+$result = $stmt->get_result();
+$dermatologist = $result->fetch_assoc();
+$stmt->close();
+
 // Get message details if message_id is provided, or bulk data for analysis
 $messageContext = '';
 if ($messageId) {
-    $stmt = $conn->prepare("SELECT name, email, message FROM contact_messages WHERE id = ?");
+    $stmt = $conn->prepare("SELECT name, email, message, phone_number, created_at FROM contact_messages WHERE id = ?");
     $stmt->bind_param("i", $messageId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -35,23 +45,52 @@ if ($messageId) {
     $stmt->close();
     
     if ($message) {
-        $messageContext = "Patient Name: " . $message['name'] . "\n";
+        $messageContext = "DERMATOLOGIST INFORMATION:\n";
+        $messageContext .= "Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . "\n";
+        $messageContext .= "Specialization: " . $dermatologist['specialization'] . "\n";
+        $messageContext .= "License Number: " . $dermatologist['license_number'] . "\n";
+        if ($dermatologist['bio']) {
+            $messageContext .= "Bio: " . $dermatologist['bio'] . "\n";
+        }
+        $messageContext .= "Practice: DermaSculpt - Dermatology, Aesthetics & Lasers\n\n";
+        
+        $messageContext .= "PATIENT INQUIRY:\n";
+        $messageContext .= "Patient Name: " . $message['name'] . "\n";
         $messageContext .= "Patient Email: " . $message['email'] . "\n";
+        if ($message['phone_number']) {
+            $messageContext .= "Patient Phone: " . $message['phone_number'] . "\n";
+        }
+        $messageContext .= "Inquiry Date: " . $message['created_at'] . "\n";
         $messageContext .= "Patient Message: " . $message['message'] . "\n\n";
     }
 } else {
-    // For bulk analysis, get recent inquiries data
-    $stmt = $conn->prepare("SELECT name, email, message, status, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 20");
+    // For bulk analysis, get recent inquiries data with additional context from database
+    $stmt = $conn->prepare("SELECT cm.name, cm.email, cm.message, cm.status, cm.created_at, cm.phone_number FROM contact_messages cm ORDER BY cm.created_at DESC LIMIT 20");
     $stmt->execute();
     $result = $stmt->get_result();
     $messages = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     
+    // Dermatologist context already loaded above
+    
     if ($messages) {
         $messageContext = "Recent Patient Inquiries Data:\n\n";
+        $messageContext .= "DERMATOLOGIST INFORMATION:\n";
+        $messageContext .= "Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . "\n";
+        $messageContext .= "Specialization: " . $dermatologist['specialization'] . "\n";
+        $messageContext .= "License Number: " . $dermatologist['license_number'] . "\n";
+        if ($dermatologist['bio']) {
+            $messageContext .= "Bio: " . substr($dermatologist['bio'], 0, 200) . "\n";
+        }
+        $messageContext .= "Practice: DermaSculpt - Dermatology, Aesthetics & Lasers\n\n";
+        
         foreach ($messages as $index => $msg) {
             $messageContext .= "Inquiry " . ($index + 1) . ":\n";
             $messageContext .= "Patient: " . $msg['name'] . "\n";
+            $messageContext .= "Email: " . $msg['email'] . "\n";
+            if ($msg['phone_number']) {
+                $messageContext .= "Phone: " . $msg['phone_number'] . "\n";
+            }
             $messageContext .= "Status: " . $msg['status'] . "\n";
             $messageContext .= "Date: " . $msg['created_at'] . "\n";
             $messageContext .= "Message: " . substr($msg['message'], 0, 200) . (strlen($msg['message']) > 200 ? "..." : "") . "\n\n";
@@ -61,15 +100,17 @@ if ($messageId) {
 
 // Define different AI prompts based on action
 $prompts = [
-    'suggest_reply' => "You are a professional dermatologist assistant. Based on the patient inquiry below, generate a professional, empathetic, and informative reply. The response should:\n\n1. Address the patient's concerns directly\n2. Provide helpful dermatological guidance (while noting it's not a substitute for in-person consultation)\n3. Suggest next steps if appropriate (scheduling appointment, etc.)\n4. Maintain a warm, professional tone\n5. Keep the response concise but comprehensive\n\nPatient Inquiry:\n" . $messageContext . "Generate a professional reply:",
+    'suggest_reply' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Based on the patient inquiry below, generate a professional, empathetic, and informative reply. The response should:\n\n1. Address the patient's concerns directly\n2. Provide helpful dermatological guidance (while noting it's not a substitute for in-person consultation)\n3. Suggest next steps if appropriate (scheduling appointment, etc.)\n4. Maintain a warm, professional tone\n5. Keep the response concise but comprehensive\n6. Sign the response with your name and credentials\n\n" . $messageContext . "Generate a professional reply:",
     
-    'suggest_professional' => "You are a dermatologist. Create a formal, clinical response to the patient inquiry below. The response should:\n\n1. Use professional medical terminology appropriately\n2. Provide evidence-based information\n3. Include appropriate disclaimers about remote consultation limitations\n4. Suggest proper medical evaluation if needed\n5. Maintain clinical objectivity\n\nPatient Inquiry:\n" . $messageContext . "Generate a professional clinical response:",
+    'suggest_professional' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a board-certified dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a formal, clinical response to the patient inquiry below. The response should:\n\n1. Use professional medical terminology appropriately\n2. Provide evidence-based information\n3. Include appropriate disclaimers about remote consultation limitations\n4. Suggest proper medical evaluation if needed\n5. Maintain clinical objectivity\n6. Sign with your name and credentials\n\n" . $messageContext . "Generate a professional clinical response:",
     
-    'suggest_empathetic' => "You are a caring dermatologist. Create a warm, empathetic response to the patient inquiry below. The response should:\n\n1. Acknowledge the patient's concerns with empathy\n2. Provide reassuring but accurate information\n3. Use accessible, non-technical language\n4. Show understanding of patient anxiety or concerns\n5. Encourage the patient while being realistic\n\nPatient Inquiry:\n" . $messageContext . "Generate an empathetic, caring response:",
+    'suggest_empathetic' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a caring dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a warm, empathetic response to the patient inquiry below. The response should:\n\n1. Acknowledge the patient's concerns with empathy\n2. Provide reassuring but accurate information\n3. Use accessible, non-technical language\n4. Show understanding of patient anxiety or concerns\n5. Encourage the patient while being realistic\n6. Sign with your name and practice information\n\n" . $messageContext . "Generate an empathetic, caring response:",
     
-    'suggest_appointment' => "You are a dermatologist's assistant. Create a response focused on scheduling and next steps for the patient inquiry below. The response should:\n\n1. Acknowledge their inquiry briefly\n2. Explain the benefits of an in-person consultation\n3. Provide clear instructions for scheduling\n4. Mention what to expect during the appointment\n5. Include any preparation instructions if relevant\n\nPatient Inquiry:\n" . $messageContext . "Generate a response focused on appointment scheduling:",
+    'suggest_appointment' => "You are representing Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a dermatologist specializing in " . $dermatologist['specialization'] . " at DermaSculpt. Create a response focused on scheduling and next steps for the patient inquiry below. The response should:\n\n1. Acknowledge their inquiry briefly\n2. Explain the benefits of an in-person consultation with Dr. " . $dermatologist['last_name'] . "\n3. Provide clear instructions for scheduling at DermaSculpt\n4. Mention what to expect during the appointment\n5. Include any preparation instructions if relevant\n6. Sign on behalf of the practice\n\n" . $messageContext . "Generate a response focused on appointment scheduling:",
     
-    'analyze_inquiry' => "You are a dermatologist. Analyze the patient inquiry below and provide:\n\n1. Key concerns identified\n2. Possible conditions or issues mentioned\n3. Urgency level (routine, moderate, urgent)\n4. Recommended response approach\n5. Suggested follow-up actions\n\nPatient Inquiry:\n" . $messageContext . "Provide a professional analysis:",
+    'analyze_inquiry' => "You are Dr. " . $dermatologist['first_name'] . " " . $dermatologist['last_name'] . ", a dermatologist specializing in " . $dermatologist['specialization'] . ". Analyze the patient inquiry below and provide:\n\n1. Key concerns identified\n2. Possible conditions or issues mentioned\n3. Urgency level (routine, moderate, urgent)\n4. Recommended response approach\n5. Suggested follow-up actions\n\n" . $messageContext . "Provide a professional analysis:",
+    
+    'grammar_fixer' => "You are a professional writing assistant specializing in medical communication. Your task is to improve the grammar, clarity, and professionalism of the text provided while maintaining the original meaning and medical accuracy. The text should be suitable for doctor-patient communication. Please:\n\n1. Fix any grammatical errors\n2. Improve sentence structure and flow\n3. Ensure professional medical tone\n4. Maintain the original meaning\n5. Keep it concise and clear\n6. Return only the improved text without additional commentary\n\nText to improve: [TEXT_TO_IMPROVE]\n\nProvide the improved version:",
     
     // Bulk analysis prompts that use actual inquiry data
     'priority_analysis' => "You are a dermatologist analyzing patient inquiries for priority triage. Based on the inquiry data below, identify which patients need urgent attention and provide a prioritized action plan:\n\n" . $messageContext . "\nAnalyze and prioritize these inquiries based on medical urgency, patient anxiety, and time sensitivity. Provide specific recommendations for each high-priority case.",
@@ -87,7 +128,12 @@ $prompts = [
     'custom' => $messageContext . $customPrompt
 ];
 
-$fullPrompt = $prompts[$action] ?? $prompts['suggest_reply'];
+// Handle grammar_fixer action specially
+if ($action === 'grammar_fixer' && !empty($textToImprove)) {
+    $fullPrompt = str_replace('[TEXT_TO_IMPROVE]', $textToImprove, $prompts['grammar_fixer']);
+} else {
+    $fullPrompt = $prompts[$action] ?? $prompts['suggest_reply'];
+}
 
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $apiKey;
 
@@ -134,6 +180,12 @@ if (isset($responseData['error'])) {
 }
 
 $aiText = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? 'Sorry, I could not generate a response at this time.';
+
+// Remove asterisks and clean up formatting
+$aiText = preg_replace('/\*\*([^*]+)\*\*/', '$1', $aiText); // Remove **bold** formatting
+$aiText = preg_replace('/\*([^*]+)\*/', '$1', $aiText); // Remove *italic* formatting
+$aiText = str_replace('*', '', $aiText); // Remove remaining asterisks
+$aiText = trim($aiText);
 
 echo json_encode([
     'success' => true,
